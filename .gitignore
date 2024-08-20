@@ -3,5 +3,5 @@
 .RData
 .Ruserdata
 _extensions
-
 /.quarto/
+renv.lock

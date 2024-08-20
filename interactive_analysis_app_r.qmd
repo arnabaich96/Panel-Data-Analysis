@@ -115,10 +115,9 @@ server <- function(input, output, session) {
 data <- read.csv("panel_data.csv")
   
   output$individualSelect <- renderUI({
-    req(data())
     selectInput("selectedID", "Select ID:",
-                choices = unique(data()$ID),
-                selected = unique(data()$ID)[1])
+                choices = unique(data$ID),
+                selected = unique(data$ID)[1])
   })
   
   
