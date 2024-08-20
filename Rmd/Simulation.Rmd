@@ -1,0 +1,382 @@
+---
+title: "Simulation"
+author: "Arnab Aich"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = FALSE,
+	message = FALSE,
+	warning = FALSE,
+	comment = NA
+)
+library(tidyverse)
+library(rio)
+library(openxlsx)
+library(ggplot2)
+library(mice)
+library(gridExtra)
+library(readr)
+```
+```{r}
+# Set seed for reproducibility
+set.seed(123)
+
+# Define the number of subjects, visits, and time points
+num_subjects <- 200
+num_visits <- 5
+num_time <- 8
+
+panel_data <- expand.grid(
+  id = 1:num_subjects,
+  visit = c("a", "b", "c", "d", "e"),
+  time = c("1","2","3","4","5","6","7","8")
+)
+
+# Assign a random treatment (0 or 1) to each subject
+treatment<- data.frame(id =  1:num_subjects, treatment = sample(0:1, num_subjects, replace = TRUE))
+# Merge the treatment information into the panel dataset
+panel_data <- merge(panel_data, treatment, by = "id")
+# rename id as subject and time as timepoint
+panel_data <- panel_data %>%
+  rename(subject = id, timepoint = time)
+
+```
+
+
+```{r}
+panel_data <- panel_data %>%
+  mutate(
+    measurement = case_when(
+      treatment == 1 ~ case_when(
+        visit == "a" ~ case_when(
+          timepoint == "1" ~ rnorm(n = nrow(panel_data), mean = 3+((4-1)/2)**2, sd = 1),
+          timepoint == "2" ~ rnorm(n = nrow(panel_data), mean = 3+((4-2)/2)**2, sd = 1),
+          timepoint == "3" ~ rnorm(n = nrow(panel_data), mean = 3+((4-3)/2)**2, sd = 1),
+          timepoint == "4" ~ rnorm(n = nrow(panel_data), mean = 3+((4-4)/2)**2, sd = 1),
+          timepoint == "5" ~ rnorm(n = nrow(panel_data), mean = 3+((4-5)/2)**2, sd = 1),
+          timepoint == "6" ~ rnorm(n = nrow(panel_data), mean = 3+((4-6)/2)**2, sd = 1),
+          timepoint == "7" ~ rnorm(n = nrow(panel_data), mean = 3+((4-7)/2)**2, sd = 1),
+          timepoint == "8" ~ rnorm(n = nrow(panel_data), mean = 3+((4-8)/2)**2, sd = 1)
+        ),
+        visit == "b" ~ case_when(
+          timepoint == "1" ~ rnorm(n = nrow(panel_data), mean = 5+((4-1)/2)**2, sd = 1),
+          timepoint == "2" ~ rnorm(n = nrow(panel_data), mean = 5+((4-2)/2)**2, sd = 1),
+          timepoint == "3" ~ rnorm(n = nrow(panel_data), mean = 5+((4-3)/2)**2, sd = 1),
+          timepoint == "4" ~ rnorm(n = nrow(panel_data), mean = 5+((4-4)/2)**2, sd = 1),
+          timepoint == "5" ~ rnorm(n = nrow(panel_data), mean = 5+((4-5)/2)**2, sd = 1),
+          timepoint == "6" ~ rnorm(n = nrow(panel_data), mean = 5+((4-6)/2)**2, sd = 1),
+          timepoint == "7" ~ rnorm(n = nrow(panel_data), mean = 5+((4-7)/2)**2, sd = 1),
+          timepoint == "8" ~ rnorm(n = nrow(panel_data), mean = 5+((4-8)/2)**2, sd = 1)
+        ),
+        visit == "c" ~ case_when(
+          timepoint == "1" ~ rnorm(n = nrow(panel_data), mean = 6.5+((4-1)/2)**2, sd = 1),
+          timepoint == "2" ~ rnorm(n = nrow(panel_data), mean = 6.5+((4-2)/2)**2, sd = 1),
+          timepoint == "3" ~ rnorm(n = nrow(panel_data), mean = 6.5+((4-3)/2)**2, sd = 1),
+          timepoint == "4" ~ rnorm(n = nrow(panel_data), mean = 6.5+((4-4)/2)**2, sd = 1),
+          timepoint == "5" ~ rnorm(n = nrow(panel_data), mean = 6.5+((4-5)/2)**2, sd = 1),
+          timepoint == "6" ~ rnorm(n = nrow(panel_data), mean = 6.5+((4-6)/2)**2, sd = 1),
+          timepoint == "7" ~ rnorm(n = nrow(panel_data), mean = 6.5+((4-7)/2)**2, sd = 1),
+          timepoint == "8" ~ rnorm(n = nrow(panel_data), mean = 6.5+((4-8)/2)**2, sd = 1)
+        ),
+        visit == "d" ~ case_when(
+          timepoint == "1" ~ rnorm(n = nrow(panel_data), mean = 8+((4-1)/2)**2, sd = 1),
+          timepoint == "2" ~ rnorm(n = nrow(panel_data), mean = 8+((4-2)/2)**2, sd = 1),
+          timepoint == "3" ~ rnorm(n = nrow(panel_data), mean = 8+((4-3)/2)**2, sd = 1),
+          timepoint == "4" ~ rnorm(n = nrow(panel_data), mean = 8+((4-4)/2)**2, sd = 1),
+          timepoint == "5" ~ rnorm(n = nrow(panel_data), mean = 8+((4-5)/2)**2, sd = 1),
+          timepoint == "6" ~ rnorm(n = nrow(panel_data), mean = 8+((4-6)/2)**2, sd = 1),
+          timepoint == "7" ~ rnorm(n = nrow(panel_data), mean = 8+((4-7)/2)**2, sd = 1),
+          timepoint == "8" ~ rnorm(n = nrow(panel_data), mean = 8+((4-8)/2)**2, sd = 1)
+        ),
+        visit == "e" ~ case_when(
+          timepoint == "1" ~ rnorm(n = nrow(panel_data), mean = 10+((4-1)/2)**2, sd = 1),
+          timepoint == "2" ~ rnorm(n = nrow(panel_data), mean = 10+((4-2)/2)**2, sd = 1),
+          timepoint == "3" ~ rnorm(n = nrow(panel_data), mean = 10+((4-3)/2)**2, sd = 1),
+          timepoint == "4" ~ rnorm(n = nrow(panel_data), mean = 10+((4-4)/2)**2, sd = 1),
+          timepoint == "5" ~ rnorm(n = nrow(panel_data), mean = 10+((4-5)/2)**2, sd = 1),
+          timepoint == "6" ~ rnorm(n = nrow(panel_data), mean = 10+((4-6)/2)**2, sd = 1),
+          timepoint == "7" ~ rnorm(n = nrow(panel_data), mean = 10+((4-7)/2)**2, sd = 1),
+          timepoint == "8" ~ rnorm(n = nrow(panel_data), mean = 10+((4-8)/2)**2, sd = 1)
+        )),
+     treatment == 0 ~ case_when(
+        visit == "a" ~ case_when(
+          timepoint == "1" ~ rnorm(n = nrow(panel_data), mean = 2-3-((4-1)/2)**2, sd = 0.75),
+          timepoint == "2" ~ rnorm(n = nrow(panel_data), mean = 2-3-((4-2)/2)**2, sd = 0.75),
+          timepoint == "3" ~ rnorm(n = nrow(panel_data), mean = 2-3-((4-3)/2)**2, sd = 0.75),
+          timepoint == "4" ~ rnorm(n = nrow(panel_data), mean = 2-3-((4-4)/2)**2, sd = 0.75),
+          timepoint == "5" ~ rnorm(n = nrow(panel_data), mean = 2-3-((4-5)/2)**2, sd = 0.75),
+          timepoint == "6" ~ rnorm(n = nrow(panel_data), mean = 2-3-((4-6)/2)**2, sd = 0.75),
+          timepoint == "7" ~ rnorm(n = nrow(panel_data), mean = 2-3-((4-7)/2)**2, sd = 0.75),
+          timepoint == "8" ~ rnorm(n = nrow(panel_data), mean = 2-3-((4-8)/2)**2, sd = 0.75)
+        ),
+        visit == "b" ~ case_when(
+          timepoint == "1" ~ rnorm(n = nrow(panel_data), mean = 3-5-((4-1)/2)**2, sd = 0.75),
+          timepoint == "2" ~ rnorm(n = nrow(panel_data), mean = 3-5-((4-2)/2)**2, sd = 0.75),
+          timepoint == "3" ~ rnorm(n = nrow(panel_data), mean = 3-5-((4-3)/2)**2, sd = 0.75),
+          timepoint == "4" ~ rnorm(n = nrow(panel_data), mean = 3-5-((4-4)/2)**2, sd = 0.75),
+          timepoint == "5" ~ rnorm(n = nrow(panel_data), mean = 3-5-((4-5)/2)**2, sd = 0.75),
+          timepoint == "6" ~ rnorm(n = nrow(panel_data), mean = 3-5-((4-6)/2)**2, sd = 0.75),
+          timepoint == "7" ~ rnorm(n = nrow(panel_data), mean = 3-5-((4-7)/2)**2, sd = 0.75),
+          timepoint == "8" ~ rnorm(n = nrow(panel_data), mean = 3-5-((4-8)/2)**2, sd = 0.75)
+        ),
+        visit == "c" ~ case_when(
+          timepoint == "1" ~ rnorm(n = nrow(panel_data), mean = 4.5-6.5-((4-1)/2)**2, sd = 0.75),
+          timepoint == "2" ~ rnorm(n = nrow(panel_data), mean = 4.5-6.5-((4-2)/2)**2, sd = 0.75),
+          timepoint == "3" ~ rnorm(n = nrow(panel_data), mean = 4.5-6.5-((4-3)/2)**2, sd = 0.75),
+          timepoint == "4" ~ rnorm(n = nrow(panel_data), mean = 4.5-6.5-((4-4)/2)**2, sd = 0.75),
+          timepoint == "5" ~ rnorm(n = nrow(panel_data), mean = 4.5-6.5-((4-5)/2)**2, sd = 0.75),
+          timepoint == "6" ~ rnorm(n = nrow(panel_data), mean = 4.5-6.5-((4-6)/2)**2, sd = 0.75),
+          timepoint == "7" ~ rnorm(n = nrow(panel_data), mean = 4.5-6.5-((4-7)/2)**2, sd = 0.75),
+          timepoint == "8" ~ rnorm(n = nrow(panel_data), mean = 4.5-6.5-((4-8)/2)**2, sd = 0.75)
+        ),
+        visit == "d" ~ case_when(
+          timepoint == "1" ~ rnorm(n = nrow(panel_data), mean = 6-8-((4-1)/2)**2, sd = 0.75),
+          timepoint == "2" ~ rnorm(n = nrow(panel_data), mean = 6-8-((4-2)/2)**2, sd = 0.75),
+          timepoint == "3" ~ rnorm(n = nrow(panel_data), mean = 6-8-((4-3)/2)**2, sd = 0.75),
+          timepoint == "4" ~ rnorm(n = nrow(panel_data), mean = 6-8-((4-4)/2)**2, sd = 0.75),
+          timepoint == "5" ~ rnorm(n = nrow(panel_data), mean = 6-8-((4-5)/2)**2, sd = 0.75),
+          timepoint == "6" ~ rnorm(n = nrow(panel_data), mean = 6-8-((4-6)/2)**2, sd = 0.75),
+          timepoint == "7" ~ rnorm(n = nrow(panel_data), mean = 6-8-((4-7)/2)**2, sd = 0.75),
+          timepoint == "8" ~ rnorm(n = nrow(panel_data), mean = 6-8-((4-8)/2)**2, sd = 0.75)
+        ),
+        visit == "e" ~ case_when(
+          timepoint == "1" ~ rnorm(n = nrow(panel_data), mean = 7-10-((4-1)/2)**2, sd = 0.75),
+          timepoint == "2" ~ rnorm(n = nrow(panel_data), mean = 7-10-((4-2)/2)**2, sd = 0.75),
+          timepoint == "3" ~ rnorm(n = nrow(panel_data), mean = 7-10-((4-3)/2)**2, sd = 0.75),
+          timepoint == "4" ~ rnorm(n = nrow(panel_data), mean = 7-10-((4-4)/2)**2, sd = 0.75),
+          timepoint == "5" ~ rnorm(n = nrow(panel_data), mean = 7-10-((4-5)/2)**2, sd = 0.75),
+          timepoint == "6" ~ rnorm(n = nrow(panel_data), mean = 7-10-((4-6)/2)**2, sd = 0.75),
+          timepoint == "7" ~ rnorm(n = nrow(panel_data), mean = 7-10-((4-7)/2)**2, sd = 0.75),
+          timepoint == "8" ~ rnorm(n = nrow(panel_data), mean = 7-10-((4-8)/2)**2, sd = 0.75)
+        ))
+    )
+  )
+head(panel_data)
+```
+
+# Original Data
+```{r}
+panel_data_treat <- panel_data %>% filter(treatment == 1)
+panel_data_control <- panel_data %>% filter(treatment == 0)
+
+grid.arrange(
+
+  ggplot(panel_data_treat, aes(x = timepoint, y = measurement , color = visit, group = visit))+
+  stat_summary(fun = mean, geom = "line", size = 0.5) +
+  stat_summary(fun = mean, geom = "point", size = 1.5) +
+  labs(x = "Time",
+       y = "Mean Response",
+       color = "Visit")+
+  theme_classic()
+  ,
+  ggplot(panel_data_control, aes(x = timepoint, y = measurement , color = visit, group = visit)) +
+  stat_summary(fun = mean, geom = "line", size = 0.5) +
+  stat_summary(fun = mean, geom = "point", size = 1.5) +
+  labs(x = "Time",
+       y = "Mean Response",
+       color = "Visit")+
+  theme_classic()
+  ,
+    ggplot(panel_data_treat, aes(x = visit, y = measurement , color = timepoint, group = timepoint))+
+  stat_summary(fun = mean, geom = "line", size = 0.5) +
+  stat_summary(fun = mean, geom = "point", size = 1.5) +
+  labs(x = "Visit",
+       y = "Mean Response",
+       color = "Color")+
+  theme_classic()
+  ,
+  ggplot(panel_data_control, aes(x = visit, y = measurement , color = timepoint, group = timepoint)) +
+  stat_summary(fun = mean, geom = "line", size = 0.5) +
+  stat_summary(fun = mean, geom = "point", size = 1.5) +
+  labs(x = "Visit",
+       y = "Mean Response",
+       color = "Color")+
+  theme_classic()
+    ,ncol=2)
+```
+
+# Adding 15% missing values
+```{r adding 15% missing values}
+panel_data_missing <- panel_data %>%
+  group_by(subject) %>%
+  mutate(missing = rbinom(n = n(), size = 1, prob = 0.15)) %>%
+  ungroup() %>%
+  mutate(measurement = ifelse(missing == 1, NA, measurement))
+```
+
+# Missing data handled by ggplot
+```{r}
+panel_data_treat_miss <- panel_data_missing %>% filter(treatment == 1)
+panel_data_control_miss <- panel_data_missing %>% filter(treatment == 0)
+grid.arrange(
+
+  ggplot(panel_data_treat_miss, aes(x = timepoint, y = measurement , color = visit, group = visit))+
+  stat_summary(fun = mean, geom = "line", size = 0.5) +
+  stat_summary(fun = mean, geom = "point", size = 1.5) +
+  labs(x = "Time",
+       y = "Mean Response",
+       color = "Visit")+
+  theme_classic()
+  ,
+  ggplot(panel_data_control_miss, aes(x = timepoint, y = measurement , color = visit, group = visit)) +
+  stat_summary(fun = mean, geom = "line", size = 0.5) +
+  stat_summary(fun = mean, geom = "point", size = 1.5) +
+  labs(x = "Time",
+       y = "Mean Response",
+       color = "Visit")+
+  theme_classic()
+  ,
+    ggplot(panel_data_treat_miss, aes(x = visit, y = measurement , color = timepoint, group = timepoint))+
+  stat_summary(fun = mean, geom = "line", size = 0.5) +
+  stat_summary(fun = mean, geom = "point", size = 1.5) +
+  labs(x = "Visit",
+       y = "Mean Response",
+       color = "Color")+
+  theme_classic()
+  ,
+  ggplot(panel_data_control_miss, aes(x = visit, y = measurement , color = timepoint, group = timepoint)) +
+  stat_summary(fun = mean, geom = "line", size = 0.5) +
+  stat_summary(fun = mean, geom = "point", size = 1.5) +
+  labs(x = "Visit",
+       y = "Mean Response",
+       color = "Color")+
+  theme_classic()
+    ,ncol=2)
+```
+```{r Impute 15% Missing values, include=FALSE}
+# Impute missing values by treatment group
+panel_data_treat_mice <- complete(mice(panel_data_treat_miss, m = 5, maxit = 50, method = "pmm"))
+panel_data_control_mice <- complete(mice(panel_data_control_miss, m = 5, maxit = 50, method = "pmm"))
+```
+
+# Imputation of missing values with MICE
+```{r}
+grid.arrange(
+
+  ggplot(panel_data_treat_mice, aes(x = timepoint, y = measurement , color = visit, group = visit))+
+  stat_summary(fun = mean, geom = "line", size = 0.5) +
+  stat_summary(fun = mean, geom = "point", size = 1.5) +
+  labs(x = "Time",
+       y = "Mean Response",
+       color = "Visit")+
+  theme_classic()
+  ,
+  ggplot(panel_data_control_mice, aes(x = timepoint, y = measurement , color = visit, group = visit)) +
+  stat_summary(fun = mean, geom = "line", size = 0.5) +
+  stat_summary(fun = mean, geom = "point", size = 1.5) +
+  labs(x = "Time",
+       y = "Mean Response",
+       color = "Visit")+
+  theme_classic()
+  ,
+    ggplot(panel_data_treat_mice, aes(x = visit, y = measurement , color = timepoint, group = timepoint))+
+  stat_summary(fun = mean, geom = "line", size = 0.5) +
+  stat_summary(fun = mean, geom = "point", size = 1.5) +
+  labs(x = "Visit",
+       y = "Mean Response",
+       color = "Color")+
+  theme_classic()
+  ,
+  ggplot(panel_data_control_mice, aes(x = visit, y = measurement , color = timepoint, group = timepoint)) +
+  stat_summary(fun = mean, geom = "line", size = 0.5) +
+  stat_summary(fun = mean, geom = "point", size = 1.5) +
+  labs(x = "Visit",
+       y = "Mean Response",
+       color = "Color")+
+  theme_classic()
+    ,ncol=2)
+```
+
+# Adding 25% missing values
+```{r adding 25% missing values}
+panel_data_missing <- panel_data %>%
+  group_by(subject) %>%
+  mutate(missing = rbinom(n = n(), size = 1, prob = 0.25)) %>%
+  ungroup() %>%
+  mutate(measurement = ifelse(missing == 1, NA, measurement))
+```
+
+# Missing data handled by ggplot
+```{r}
+panel_data_treat_miss <- panel_data_missing %>% filter(treatment == 1)
+panel_data_control_miss <- panel_data_missing %>% filter(treatment == 0)
+grid.arrange(
+
+  ggplot(panel_data_treat_miss, aes(x = timepoint, y = measurement , color = visit, group = visit))+
+  stat_summary(fun = mean, geom = "line", size = 0.5) +
+  stat_summary(fun = mean, geom = "point", size = 1.5) +
+  labs(x = "Time",
+       y = "Mean Response",
+       color = "Visit")+
+  theme_classic()
+  ,
+  ggplot(panel_data_control_miss, aes(x = timepoint, y = measurement , color = visit, group = visit)) +
+  stat_summary(fun = mean, geom = "line", size = 0.5) +
+  stat_summary(fun = mean, geom = "point", size = 1.5) +
+  labs(x = "Time",
+       y = "Mean Response",
+       color = "Visit")+
+  theme_classic()
+  ,
+    ggplot(panel_data_treat_miss, aes(x = visit, y = measurement , color = timepoint, group = timepoint))+
+  stat_summary(fun = mean, geom = "line", size = 0.5) +
+  stat_summary(fun = mean, geom = "point", size = 1.5) +
+  labs(x = "Visit",
+       y = "Mean Response",
+       color = "Color")+
+  theme_classic()
+  ,
+  ggplot(panel_data_control_miss, aes(x = visit, y = measurement , color = timepoint, group = timepoint)) +
+  stat_summary(fun = mean, geom = "line", size = 0.5) +
+  stat_summary(fun = mean, geom = "point", size = 1.5) +
+  labs(x = "Visit",
+       y = "Mean Response",
+       color = "Color")+
+  theme_classic()
+    ,ncol=2)
+```
+```{r Impute 25% Missing values, include=FALSE}
+# Impute missing values by treatment group
+panel_data_treat_mice <- complete(mice(panel_data_treat_miss, m = 5, maxit = 50, method = "pmm"))
+panel_data_control_mice <- complete(mice(panel_data_control_miss, m = 5, maxit = 50, method = "pmm"))
+```
+
+# Imputation of missing values with MICE
+```{r}
+grid.arrange(
+
+  ggplot(panel_data_treat_mice, aes(x = timepoint, y = measurement , color = visit, group = visit))+
+  stat_summary(fun = mean, geom = "line", size = 0.5) +
+  stat_summary(fun = mean, geom = "point", size = 1.5) +
+  labs(x = "Time",
+       y = "Mean Response",
+       color = "Visit")+
+  theme_classic()
+  ,
+  ggplot(panel_data_control_mice, aes(x = timepoint, y = measurement , color = visit, group = visit)) +
+  stat_summary(fun = mean, geom = "line", size = 0.5) +
+  stat_summary(fun = mean, geom = "point", size = 1.5) +
+  labs(x = "Time",
+       y = "Mean Response",
+       color = "Visit")+
+  theme_classic()
+  ,
+    ggplot(panel_data_treat_mice, aes(x = visit, y = measurement , color = timepoint, group = timepoint))+
+  stat_summary(fun = mean, geom = "line", size = 0.5) +
+  stat_summary(fun = mean, geom = "point", size = 1.5) +
+  labs(x = "Visit",
+       y = "Mean Response",
+       color = "Color")+
+  theme_classic()
+  ,
+  ggplot(panel_data_control_mice, aes(x = visit, y = measurement , color = timepoint, group = timepoint)) +
+  stat_summary(fun = mean, geom = "line", size = 0.5) +
+  stat_summary(fun = mean, geom = "point", size = 1.5) +
+  labs(x = "Visit",
+       y = "Mean Response",
+       color = "Color")+
+  theme_classic()
+    ,ncol=2)
+```
