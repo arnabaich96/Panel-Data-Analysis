@@ -1,10 +1,11 @@
 ---
 title: "Interactive Analysis with Shiny"
-format: html
+format: 
+  html: 
+       embed-resources: true
 runtime: shiny
 self-contained: true
 ---
-
 
 ```{r logo, echo=FALSE, out.width="100px"}
 htmltools::img(src = knitr::image_uri(file.path("logo.png")),
@@ -12,7 +13,6 @@ htmltools::img(src = knitr::image_uri(file.path("logo.png")),
                style = 'position:absolute; top:0; right:0; padding:10px;',
                width='400px')
 ```
-
 
 ```{r setup, include=FALSE}
 # Load required libraries
@@ -45,7 +45,7 @@ trapezoidal_auc <- function(time, value) {
 # User Interface ----------------------------------------------------------------------
 ui <- fluidPage(
   # App Title ---------------------------------------------------------------
-  titlePanel("Summary statistics and AUC calculation for Longitudinal data"),
+  titlePanel("Summary statistics and AUC calculation for Trial 111 and 112 data"),
   
   # Set up sidebar for user interaction ---------------------------------------------------
   sidebarLayout(
@@ -112,7 +112,8 @@ ui <- fluidPage(
 # Define server logic
 server <- function(input, output, session) {
   # Load the data directly
-data <- read.csv("panel_data.csv")
+# data <- read.csv("panel_data.csv")0
+data <- read.csv("data/data_cpep_mice.csv")
   
   output$individualSelect <- renderUI({
     selectInput("selectedID", "Select ID:",
@@ -125,8 +126,6 @@ data <- read.csv("panel_data.csv")
   
   
 output$InteractionPlot =renderPlot({  
-  data_treated <- data %>% filter(treatment == 1)
-  data_control <- data %>% filter(treatment == 0)
   fun_CI <-  function(x) {
     data <- mean(x)
     se <- sd(x) / sqrt(length(x))
@@ -290,7 +289,6 @@ output$AUCSummary <- renderPrint({
 })
 }
 ```
-
 
 ```{r echo=FALSE}
 # Run App -----------------------------------------------------------------
