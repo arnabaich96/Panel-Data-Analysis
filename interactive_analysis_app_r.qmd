@@ -14,7 +14,6 @@ htmltools::img(src = knitr::image_uri(file.path("logo.png")),
                width='400px')
 ```
 
-
 ```{r setup, echo=FALSE,include=FALSE}
 # Load required libraries
 library(shiny)
@@ -36,8 +35,12 @@ trapezoidal_auc <- function(time, value) {
   }
   return(abs(auc))
 }
+# Function to convert "hr" strings to minutes
+convert_to_minutes <- function(time_str) {
+  hours <- as.numeric(sub("hr", "", time_str))
+  return(hours * 60)
+}
 ```
-
 
 ```{r UI, echo=FALSE,include=FALSE}
 # Define choices for UI
@@ -52,39 +55,37 @@ ui <- fluidPage(
   # Top horizontal layout with input controls
   fluidRow(
     column(2,
-           radioButtons("Measurement", "Select measurement type:",
+           radioButtons("Treatment", "Visualization:",
+                        choices = c("Pooled", "Individual"), 
+                        selected = "Individual"),
+           radioButtons("Measurement", "Measurement:",
                         choices = choice_measure,
                         selected = "C-peptide")
     ),
     column(2,
-           radioButtons("Treatment", "Select visualization type:",
-                        choices = c("Pooled", "Individual"), 
-                        selected = "Individual")
-    ),
-    column(2,
            conditionalPanel(condition = "input.Treatment != 'Individual'",
                             checkboxInput("Summary", "Summary (default: Mean)", value = FALSE)),
+          conditionalPanel(condition = "input.Summary == true",
+                            selectInput("SummaryType", "Select Summary Type",
+                                        choices = c("mean", "sd", "median", "min", "max", "IQR"),
+                                        selected = "mean")),
            conditionalPanel(condition = "input.Summary == false && input.Treatment != 'Individual'",
                             checkboxInput("CI", "Confidence Interval", value = FALSE)),
            conditionalPanel(condition = "input.CI == true && input.Summary == false && input.Treatment != 'Individual'",
                             sliderInput("CI_level", "Confidence Interval Level",
-                                        min = 0.5, max = 1.0, value = 0.95, step = 0.01))
-    ),
-    column(2,
-           radioButtons("plotvariable", "Select variable for X-axis",
-                        choices = c("Visit", "Time"),
-                        selected = "Visit"),
+                                        min = 0.5, max = 1.0, value = 0.95, step = 0.01)) ,
            conditionalPanel(condition = "input.Treatment == 'Individual'",
                             uiOutput("individualSelect"))
     ),
     column(2,
-           conditionalPanel(condition = "input.Summary == true",
-                            selectInput("SummaryType", "Select Summary Type",
-                                        choices = c("mean", "sd", "median", "min", "max", "IQR"),
-                                        selected = "mean")),
+           radioButtons("plotvariable", "Variable for X-axis",
+                        choices = c("Visit", "Time"),
+                        selected = "Visit")
+    ),
+    column(2,
            checkboxInput("showAUC", "Area Under Curve (AUC)", value = FALSE),
            conditionalPanel(condition = "input.showAUC == true && input.Treatment != 'Individual'",
-                            selectInput("AUC_SummaryType", "Select AUC Summary Type",
+                            selectInput("AUC_SummaryType", "AUC Summary Type",
                                         choices = c("mean", "sd", "median", "min", "max", "IQR"),
                                         selected = "mean"))
     ),
@@ -98,13 +99,19 @@ ui <- fluidPage(
   fluidRow(
     column(6,
            h3("Raw Data"),
-           plotlyOutput("InteractionPlot"),
-           gt_output("Summary")
+           plotlyOutput("InteractionPlot_raw"),
+           gt_output("Summary_raw"),
+           conditionalPanel(condition = "input.showAUC == true",
+                            plotOutput("AUCPlot_raw"),
+                            verbatimTextOutput("AUCSummary_raw"))
     ),
     column(6,
            h3("Imputed Data"),
-           plotlyOutput("AUCPlot"),
-           gt_output("AUCSummary")
+           plotlyOutput("InteractionPlot_imputed"),
+           gt_output("Summary_imputed"),
+           conditionalPanel(condition = "input.showAUC == true",
+                            plotOutput("AUCPlot_imputed"),
+                            verbatimTextOutput("AUCSummary_imputed"))
     )
   )
 )
@@ -120,6 +127,7 @@ server <- function(input, output, session) {
   data_gluc <- read.csv("data/data_gluc.csv")
   data_cpep_mice <- read.csv("data/data_cpep_mice.csv")
   data_gluc_mice <- read.csv("data/data_gluc_mice.csv")
+  
   
   data <- reactive({
     if (input$Measurement == "Glucose") {
@@ -138,11 +146,9 @@ server <- function(input, output, session) {
   })
   
   # Interaction Plot for Raw Data (Left Column) --------------------------------------
-  output$InteractionPlot <- renderPlotly({
+  output$InteractionPlot_raw <- renderPlotly({
     req(input$runBtn)
-    
     plot_data <- data()$raw
-    
     if (input$Treatment == "Pooled") {
       plot_data <- plot_data %>%
         group_by(Visit, Time) %>%
@@ -151,15 +157,24 @@ server <- function(input, output, session) {
     } else if (input$Treatment == "Individual") {
       plot_data <- plot_data %>% filter(ID == input$selectedID)
     }
-    
-    plot <- switch(input$plotvariable,
+    plot <- if(!input$CI){ 
+               switch(input$plotvariable,
                    "Visit" = {
                      plot_ly(plot_data, x = ~Time, y = ~Measurement, color = ~as.factor(Visit), type = 'scatter', mode = 'lines+markers')
                    },
                    "Time" = {
                      plot_ly(plot_data, x = ~Visit, y = ~Measurement, color = ~as.factor(Time), type = 'scatter', mode = 'lines+markers')
                    })
-    
+    }else{
+                    ci_data <- plot_data %>%
+        group_by(get(input$plotvariable)) %>%
+        summarise(mean = mean(Measurement, na.rm = TRUE), 
+                  se = sd(Measurement, na.rm = TRUE) / sqrt(n())) %>%
+        mutate(ci_upper = round(mean + qnorm(1 - (1 - input$CI_level) / 2) * se, 3),
+               ci_lower = round(mean - qnorm(1 - (1 - input$CI_level) / 2) * se, 3))
+      plot %>%
+        add_ribbons(data = ci_data, x = ~get(input$plotvariable), ymin = ~ci_lower, ymax = ~ci_upper, color = I('gray80'), name = 'CI') %>%
+        add_trace(data = ci_data, x = ~get(input$plotvariable), y = ~mean, mode = 'markers+lines', line = list(color = 'red'), name = 'Mean with CI')  }
     if (input$Treatment == "Individual" && any(is.na(plot_data$Measurement))) {
       na_data <- plot_data %>%
         filter(is.na(Measurement)) %>%
@@ -168,25 +183,12 @@ server <- function(input, output, session) {
       plot <- plot %>%
         add_markers(data = na_data, x = ~Time, y = ~Measurement, color = ~as.factor(Visit), symbol = I('asterisk'), size = I(10))
     }
-    
-    if (input$SummaryType == "mean" && input$CI && input$Treatment == "Pooled") {
-      ci_data <- plot_data %>%
-        group_by(get(input$plotvariable)) %>%
-        summarise(mean = mean(Measurement, na.rm = TRUE), 
-                  se = sd(Measurement, na.rm = TRUE) / sqrt(n())) %>%
-        mutate(ci_upper = round(mean + qnorm(1 - (1 - input$CI_level) / 2) * se, 3),
-               ci_lower = round(mean - qnorm(1 - (1 - input$CI_level) / 2) * se, 3))
-      
-      plot <- plot %>%
-        add_ribbons(data = ci_data, x = ~get(input$plotvariable), ymin = ~ci_lower, ymax = ~ci_upper, color = I('gray80'), name = 'CI') %>%
-        add_trace(data = ci_data, x = ~get(input$plotvariable), y = ~mean, mode = 'markers+lines', line = list(color = 'red'), name = 'Mean with CI')
-    }
-    
     plot
   })
   
   # Interaction Plot for Imputed Data (Right Column) ------------------------------
-  output$AUCPlot <- renderPlotly({
+  output$InteractionPlot_imputed <- renderPlotly({
+    
     req(input$runBtn)
     
     plot_data <- data()$imputed
@@ -211,33 +213,50 @@ server <- function(input, output, session) {
     }else{
       switch(input$plotvariable,
                    "Visit" = {
-        ci_data <- plot_data %>%
-        group_by(Visit) %>%
-        summarise(mean = mean(Measurement), 
-                  se = sd(Measurement) / sqrt(n())) %>%
-        mutate(ci_upper = round(mean + qnorm(1 - (1 - input$CI_level) / 2) * se, 3),
-               ci_lower = round(mean - qnorm(1 - (1 - input$CI_level) / 2) * se, 3))
-      plot <- plot_ly(plot_data, x = ~Time, y = ~Measurement, color = ~as.factor(Visit), type = 'scatter', mode = 'lines+markers') %>%
-        add_ribbons(data = ci_data, x = ~Visit, ymin = ~ci_lower, ymax = ~ci_upper, color = I('gray80'), name = 'CI') %>%
-        add_trace(data = ci_data, x = ~Visit, y = ~mean, mode = 'markers+lines', line = list(color = 'red'), name = 'Mean with CI')
+ci_data <- plot_data %>%
+  group_by(Visit) %>%
+  summarise(
+    mean = mean(Measurement, na.rm = TRUE), 
+    se = sd(Measurement, na.rm = TRUE) / sqrt(n())
+  ) %>%
+  mutate(
+    ci_upper = round(mean + qnorm(1 - (1 - input$CI_level) / 2) * se, 3),
+    ci_lower = round(mean - qnorm(1 - (1 - input$CI_level) / 2) * se, 3)
+  )
+
+# Create the plot using ggplot2
+plot <- ggplot((plot_data), aes(x = Time, y = Measurement, color = as.factor(Visit), group = Visit)) +
+  geom_line() +
+  geom_point() +
+  geom_ribbon(data = ci_data, aes(x = Visit, ymin = ci_lower, ymax = ci_upper), fill = "gray80", alpha = 0.5) +
+  geom_line(data = ci_data, aes(x = Visit, y = mean), color = "red") +
+  labs(color = "Visit") +
+  theme_minimal()
                    },
                    "Time" = {
-                       ci_data <- plot_data %>%
-        group_by(Time) %>%
-        summarise(mean = mean(Measurement), 
-                  se = sd(Measurement) / sqrt(n())) %>%
-        mutate(ci_upper = round(mean + qnorm(1 - (1 - input$CI_level) / 2) * se, 3),
-               ci_lower = round(mean - qnorm(1 - (1 - input$CI_level) / 2) * se, 3))
-      plot <- plot_ly(plot_data, x = ~Time, y = ~Measurement, color = ~as.factor(Time), type = 'scatter', mode = 'lines+markers') %>%
-        add_ribbons(data = ci_data, x = ~Time, ymin = ~ci_lower, ymax = ~ci_upper, color = I('gray80'), name = 'CI') %>%
-        add_trace(data = ci_data, x = ~Time, y = ~mean, mode = 'markers+lines', line = list(color = 'red'), name = 'Mean with CI')
+                     ci_data <- plot_data %>%
+  group_by(Time) %>%
+  summarise(
+    mean = mean(Measurement, na.rm = TRUE), 
+    se = sd(Measurement, na.rm = TRUE) / sqrt(n()),
+    ci_upper = round(mean + qnorm(1 - (1 - input$CI_level) / 2) * se, 3),
+    ci_lower = round(mean - qnorm(1 - (1 - input$CI_level) / 2) * se, 3)
+  )
+
+# Create the plot using ggplot2
+plot <- ggplot(plot_data, aes(x = Time, y = Measurement, color = as.factor(Time))) +
+  geom_line() +
+  geom_point() +
+  geom_ribbon(data = ci_data, aes(ymin = ci_lower, ymax = ci_upper), fill = "gray80", alpha = 0.5) +
+  geom_line(data = ci_data, aes(y = mean), color = "red") +
+  theme_minimal()
                    })
       
     }
     })
   
   # Summary statistics for Raw Data (Left Column) ------------------------------------
-  output$Summary <- renderText({
+  output$Summary_raw<- renderText({
     req(input$runBtn)
     
     if (input$Treatment == "Pooled") {
@@ -265,13 +284,13 @@ server <- function(input, output, session) {
   })
   
   # Summary statistics for Imputed Data (Right Column) ------------------------------
-  output$AUCSummary <- renderText({
+  output$Summary_imputed <- renderText({
     req(input$runBtn)
     
     if (input$Treatment == "Pooled") {
       summary_data <- data()$imputed %>%
         group_by(Visit, Time) %>%
-        summarise(Measurement = round(match.fun(input$SummaryType)(Measurement), 3))
+        summarise(Measurement = round(match.fun(input$AUC_SummaryType)(Measurement), 3))
       
       summary_table <- if (input$plotvariable == "Visit") {
         summary_data %>%
@@ -284,17 +303,136 @@ server <- function(input, output, session) {
       }
       
       summary_table <- summary_table %>%
-        kable("html", table.attr = "class='table table-striped'", caption = paste("Summary statistics for Imputed Data:", input$SummaryType)) %>%
+        kable("html", table.attr = "class='table table-striped'", caption = paste("Summary statistics for Imputed Data:", input$AUC_SummaryType)) %>%
         kable_styling(full_width = F, bootstrap_options = c("striped", "hover", "condensed")) %>%
         as.character()
       
       summary_table
     }
   })
+  
+  # AUC Plot for raw data (Left Column)----------------------------------
+output$AUCPlot_raw <- renderPlot({  
+                 data <- data()$raw
+# Convert all time strings
+data$Time <- sapply(data$Time, convert_to_minutes)
+  auc_trapezoidal<- data %>%
+    group_by(ID,Visit) %>%
+    summarise(auc = trapezoidal_auc(as.numeric(Time), Measurement))%>%
+    ungroup()
+  auc_ID <- auc_trapezoidal %>% filter(ID == input$selectedID) %>% ungroup()
+        switch(input$Treatment,
+               "Pooled" = {
+                 ggplot(auc_trapezoidal, aes(x = Visit, y = auc)) +
+                   stat_summary(fun = input$AUC_SummaryType, geom = "line", size = 0.5) +
+                   stat_summary(fun = input$AUC_SummaryType, geom = "point", size = 1.5) +
+                   labs(x = "Time",
+                        y = paste(input$AUC_SummaryType))+
+                   theme_classic()+
+                   ggtitle(paste("Summary:",input$AUC_SummaryType,"of AUC"))
+               },
+               "Individual" = {
+                 ggplot(auc_ID, aes(x = Visit, y = auc, group = ID)) +
+                   geom_line(size = 0.5) + geom_point(size = 1.5) +
+                   labs(x = "Visit",
+                        y = "AUC",
+                        color = "ID") + theme_classic() +
+                  ggtitle(paste("AUC for subject ID:", input$selectedID))
+               }
+        )
+      })
+  # AUC plot for Imputed data(Right Column)----------------------------------
+output$AUCPlot_imputed <- renderPlot({  
+                 data <- data()$imputed
+                 # Convert all time strings
+data$Time <- sapply(data$Time, convert_to_minutes)
+  auc_trapezoidal<- data %>%
+    group_by(ID,Visit) %>%
+    summarise(auc = trapezoidal_auc(as.numeric(Time), Measurement))%>%
+    ungroup()
+  auc_ID <- auc_trapezoidal %>% filter(ID == input$selectedID) %>% ungroup()
+        switch(input$Treatment,
+               "Pooled" = {
+                 ggplot(auc_trapezoidal, aes(x = Visit, y = auc)) +
+                   stat_summary(fun = input$AUC_SummaryType, geom = "line", size = 0.5) +
+                   stat_summary(fun = input$AUC_SummaryType, geom = "point", size = 1.5) +
+                   labs(x = "Time",
+                        y = paste(input$AUC_SummaryType),
+                        color = "Group")+
+                   theme_classic()+
+                   ggtitle(paste("Summary:",input$AUC_SummaryType,"of AUC "))
+               },
+               "Individual" = {
+                 ggplot(auc_ID, aes(x = Visit, y = auc, group = ID)) +
+                   geom_line(size = 0.5) + geom_point(size = 1.5) +
+                   labs(x = "Visit",
+                        y = "AUC",
+                        color = "ID") + theme_classic() +
+                  ggtitle(paste("AUC for subject ID:", input$selectedID))
+               }
+        )
+      })  
+    
+  # AUC Summary for raw data (Left Column)-------------------------------------------------------------
+output$AUCSummary_raw <- renderPrint({
+  data <- data()$raw
+  # Convert all time strings
+data$Time <- sapply(data$Time, convert_to_minutes)
+  auc_trapezoidal<- data %>%
+    group_by(ID,Visit) %>%
+    summarise(auc = trapezoidal_auc(as.numeric(Time), Measurement))%>%
+    ungroup()
+  auc_ID <- auc_trapezoidal %>% filter(ID == input$selectedID)
+      switch(input$Treatment,
+             "Pooled" = {
+               o=auc_trapezoidal %>% group_by(Visit) %>%  summarise(auc = match.fun(input$AUC_SummaryType)(auc, na.rm = TRUE))
+               b=xtabs(auc ~ Visit, data = o)
+               if(input$plotvariable=="Visit") b = b
+               else b = t(b)
+               knitr::kable(b, caption = paste("Summary:",input$AUC_SummaryType,"for AUC"))
+             },
+             "Individual" = {
+               b =  xtabs(auc ~ Visit, 
+                          auc_trapezoidal %>% filter(ID == input$selectedID))
+               if(input$plotvariable=="Visit") b=b
+               else b = t(b)
+               knitr::kable(b, caption = paste("AUC of subject ID:", input$selectedID))
+              
+             }
+      )
+      
+})
+  
+  # AUC Summary for imputed data (right Column)-------------------------------------------------------------
+output$AUCSummary_imputed <- renderPrint({
+  data <- data()$imputed
+  # Convert all time strings
+data$Time <- sapply(data$Time, convert_to_minutes)
+  auc_trapezoidal<- data %>%
+    group_by(ID,Visit) %>%
+    summarise(auc = trapezoidal_auc(as.numeric(Time), Measurement))%>%
+    ungroup()
+  auc_ID <- auc_trapezoidal %>% filter(ID == input$selectedID)
+      switch(input$Treatment,
+             "Pooled" = {
+               o=auc_trapezoidal %>% group_by(Visit) %>% summarise_at(vars(auc), list(input$AUC_SummaryType))
+               b=xtabs(auc ~ Visit, data = o)
+               if(input$plotvariable=="Visit") b = b
+               else b = t(b)
+               knitr::kable(b, caption = paste("Summary:",input$AUC_SummaryType,"for AUC"))
+             },
+             "Individual" = {
+               b =  xtabs(auc ~ Visit, 
+                          auc_trapezoidal %>% filter(ID == input$selectedID))
+               if(input$plotvariable=="Visit") b=b
+               else b = t(b)
+               knitr::kable(b, caption = paste("AUC of subject ID:", input$selectedID))
+              
+             }
+      )
+})
 }
-
 ```
-
 
 ```{r Run app , echo=FALSE,eval=TRUE }
 # Run the Shiny App
