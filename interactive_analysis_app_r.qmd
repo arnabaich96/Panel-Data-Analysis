@@ -199,46 +199,148 @@ server <- function(input, output, session) {
   output$InteractionPlot_raw <- renderPlotly({
     req(input$runBtn)
     plot_data <- data()$raw
+    
     if (input$Treatment == "Pooled") {
-      plot_data <- plot_data %>%
+      summary_data <- plot_data %>%
         group_by(Visit, Time) %>%
-        summarise(Measurement = round(match.fun(input$SummaryType)(Measurement, na.rm = TRUE), 3)) %>%
+        summarise(
+          Measurement_mean = round(match.fun(input$SummaryType)(Measurement, na.rm = TRUE), 3),
+          Measurement_sd = sd(Measurement, na.rm = TRUE),
+          Measurement_lower = Measurement_mean - qt(1 - (1 - input$CI_level) / 2, df = n() - 1) * Measurement_sd / sqrt(n()),
+          Measurement_upper = Measurement_mean + qt(1 - (1 - input$CI_level) / 2, df = n() - 1) * Measurement_sd / sqrt(n())
+        ) %>%
         ungroup()
+      
+      plot <- switch(input$plotvariable,
+                     "Visit" = {
+                       plot_ly(summary_data, x = ~Time, y = ~Measurement_mean, color = ~as.factor(Visit), type = 'scatter', mode = 'lines+markers') %>%
+                         layout(
+                           title = "Interaction Plot with Confidence Interval",
+                           xaxis = list(title = "Time"),
+                           yaxis = list(title = "Measurement"),
+                           legend = list(orientation = 'h', x = 0.5, xanchor = 'center', y = -0.2)
+                         )
+                     },
+                     "Time" = {
+                       plot_ly(summary_data, x = ~Visit, y = ~Measurement_mean, color = ~as.factor(Time), type = 'scatter', mode = 'lines+markers') %>%
+                         layout(
+                           title = "Interaction Plot with Confidence Interval",
+                           xaxis = list(title = "Visit"),
+                           yaxis = list(title = "Measurement"),
+                           legend = list(orientation = 'h', x = 0.5, xanchor = 'center', y = -0.2)
+                         )
+                     })
+      
+      if (input$CI) {
+        plot <- plot %>%
+          add_ribbons(
+            ymin = ~Measurement_lower, ymax = ~Measurement_upper,
+            line = list(color = 'transparent'),  # Hide the CI line
+            fillcolor = ~paste0("rgba(", col2rgb("red")[1], ",", col2rgb("red")[2], ",", col2rgb("red")[3], ",0.2)"),  # Adjust with a fixed color and transparency
+            hoverinfo = "none",  # Remove CI hover info
+            showlegend = FALSE   # Do not show CI in legend
+          )
+      }
+      
     } else if (input$Treatment == "Individual") {
       plot_data <- plot_data %>% filter(ID == input$selectedID)
+      plot <- switch(input$plotvariable,
+                     "Visit" = {
+                       plot_ly(plot_data, x = ~Time, y = ~Measurement, color = ~as.factor(Visit), type = 'scatter', mode = 'lines+markers') %>%
+                         layout(
+                           title = paste("Interaction Plot for ID:", input$selectedID),
+                           xaxis = list(title = "Time"),
+                           yaxis = list(title = "Measurement"),
+                           legend = list(orientation = 'h', x = 0.5, xanchor = 'center', y = -0.2)
+                         )
+                     },
+                     "Time" = {
+                       plot_ly(plot_data, x = ~Visit, y = ~Measurement, color = ~as.factor(Time), type = 'scatter', mode = 'lines+markers') %>%
+                         layout(
+                           title = paste("Interaction Plot for ID:", input$selectedID),
+                           xaxis = list(title = "Visit"),
+                           yaxis = list(title = "Measurement"),
+                           legend = list(orientation = 'h', x = 0.5, xanchor = 'center', y = -0.2)
+                         )
+                     })
     }
-    plot <- switch(input$plotvariable,
-                   "Visit" = {
-                     plot_ly(plot_data, x = ~Time, y = ~Measurement, color = ~as.factor(Visit), type = 'scatter', mode = 'lines+markers')
-                   },
-                   "Time" = {
-                     plot_ly(plot_data, x = ~Visit, y = ~Measurement, color = ~as.factor(Time), type = 'scatter', mode = 'lines+markers')
-                   })
+    
     plot
   })
-  
+
   # Interaction Plot for Imputed Data (Right Column) using plotly
   output$InteractionPlot_imputed <- renderPlotly({
     req(input$runBtn)
     plot_data <- data()$imputed
+    
     if (input$Treatment == "Pooled") {
-      plot_data <- plot_data %>%
+      summary_data <- plot_data %>%
         group_by(Visit, Time) %>%
-        summarise(Measurement = round(match.fun(input$SummaryType)(Measurement), 3)) %>%
+        summarise(
+          Measurement_mean = round(match.fun(input$SummaryType)(Measurement, na.rm = TRUE), 3),
+          Measurement_sd = sd(Measurement, na.rm = TRUE),
+          Measurement_lower = Measurement_mean - qt(1 - (1 - input$CI_level) / 2, df = n() - 1) * Measurement_sd / sqrt(n()),
+          Measurement_upper = Measurement_mean + qt(1 - (1 - input$CI_level) / 2, df = n() - 1) * Measurement_sd / sqrt(n())
+        ) %>%
         ungroup()
+      
+      plot <- switch(input$plotvariable,
+                     "Visit" = {
+                       plot_ly(summary_data, x = ~Time, y = ~Measurement_mean, color = ~as.factor(Visit), type = 'scatter', mode = 'lines+markers') %>%
+                         layout(
+                           title = "Imputed Data Interaction Plot with Confidence Interval",
+                           xaxis = list(title = "Time"),
+                           yaxis = list(title = "Measurement"),
+                           legend = list(orientation = 'h', x = 0.5, xanchor = 'center', y = -0.2)
+                         )
+                     },
+                     "Time" = {
+                       plot_ly(summary_data, x = ~Visit, y = ~Measurement_mean, color = ~as.factor(Time), type = 'scatter', mode = 'lines+markers') %>%
+                         layout(
+                           title = "Imputed Data Interaction Plot with Confidence Interval",
+                           xaxis = list(title = "Visit"),
+                           yaxis = list(title = "Measurement"),
+                           legend = list(orientation = 'h', x = 0.5, xanchor = 'center', y = -0.2)
+                         )
+                     })
+      
+      if (input$CI) {
+        plot <- plot %>%
+          add_ribbons(
+            ymin = ~Measurement_lower, ymax = ~Measurement_upper,
+            line = list(color = 'transparent'),  # Hide the CI line
+            fillcolor = ~paste0("rgba(", col2rgb("red")[1], ",", col2rgb("red")[2], ",", col2rgb("red")[3], ",0.2)"),  # Adjust with a fixed color and transparency
+            hoverinfo = "none",  # Remove CI hover info
+            showlegend = FALSE   # Do not show CI in legend
+          )
+      }
+      
     } else if (input$Treatment == "Individual") {
       plot_data <- plot_data %>% filter(ID == input$selectedID)
+      plot <- switch(input$plotvariable,
+                     "Visit" = {
+                       plot_ly(plot_data, x = ~Time, y = ~Measurement, color = ~as.factor(Visit), type = 'scatter', mode = 'lines+markers') %>%
+                         layout(
+                           title = paste("Interaction Plot for ID:", input$selectedID),
+                           xaxis = list(title = "Time"),
+                           yaxis = list(title = "Measurement"),
+                           legend = list(orientation = 'h', x = 0.5, xanchor = 'center', y = -0.2)
+                         )
+                     },
+                     "Time" = {
+                       plot_ly(plot_data, x = ~Visit, y = ~Measurement, color = ~as.factor(Time), type = 'scatter', mode = 'lines+markers') %>%
+                         layout(
+                           title = paste("Interaction Plot for ID:", input$selectedID),
+                           xaxis = list(title = "Visit"),
+                           yaxis = list(title = "Measurement"),
+                           legend = list(orientation = 'h', x = 0.5, xanchor = 'center', y = -0.2)
+                         )
+                     })
     }
-    plot <- switch(input$plotvariable,
-                   "Visit" = {
-                     plot_ly(plot_data, x = ~Time, y = ~Measurement, color = ~as.factor(Visit), type = 'scatter', mode = 'lines+markers')
-                   },
-                   "Time" = {
-                     plot_ly(plot_data, x = ~Visit, y = ~Measurement, color = ~as.factor(Time), type = 'scatter', mode = 'lines+markers')
-                   })
+    
     plot
   })
-  
+
   # Summary statistics for Raw Data (Left Column) using gt
   output$Summary_raw <- render_gt({
     req(input$runBtn)
@@ -289,12 +391,13 @@ server <- function(input, output, session) {
       )
   })
   
- # AUC Plot for raw data (Left Column) using plotly with conditional CI
+  # AUC Plot for raw data (Left Column) using plotly with conditional CI
   output$AUCPlot_raw <- renderPlotly({  
     data <- data()$raw
     data$Time <- sapply(data$Time, convert_to_minutes)
+    
     auc_trapezoidal <- data %>%
-      filter(!is.na(Measurement)) %>%
+      filter(!is.na(Measurement)) %>%   # Ensure NA values are excluded
       group_by(ID, Visit) %>%
       summarise(auc = trapezoidal_auc(as.numeric(Time), Measurement)) %>%
       ungroup()
@@ -303,8 +406,8 @@ server <- function(input, output, session) {
       summary_data <- auc_trapezoidal %>%
         group_by(Visit) %>%
         summarise(
-          auc_mean = mean(auc),
-          auc_sd = sd(auc),
+          auc_mean = match.fun(input$AUC_SummaryType)(auc, na.rm = TRUE),
+          auc_sd = sd(auc, na.rm = TRUE),
           auc_lower = auc_mean - qt(1 - (1 - input$CI_level) / 2, df = n() - 1) * auc_sd / sqrt(n()),
           auc_upper = auc_mean + qt(1 - (1 - input$CI_level) / 2, df = n() - 1) * auc_sd / sqrt(n())
         )
@@ -338,7 +441,9 @@ server <- function(input, output, session) {
   output$AUCPlot_imputed <- renderPlotly({  
     data <- data()$imputed
     data$Time <- sapply(data$Time, convert_to_minutes)
+    
     auc_trapezoidal <- data %>%
+      filter(!is.na(Measurement)) %>%   # Ensure NA values are excluded
       group_by(ID, Visit) %>%
       summarise(auc = trapezoidal_auc(as.numeric(Time), Measurement)) %>%
       ungroup()
@@ -347,8 +452,8 @@ server <- function(input, output, session) {
       summary_data <- auc_trapezoidal %>%
         group_by(Visit) %>%
         summarise(
-          auc_mean = mean(auc),
-          auc_sd = sd(auc),
+          auc_mean = match.fun(input$AUC_SummaryType)(auc, na.rm = TRUE),
+          auc_sd = sd(auc, na.rm = TRUE),
           auc_lower = auc_mean - qt(1 - (1 - input$CI_level) / 2, df = n() - 1) * auc_sd / sqrt(n()),
           auc_upper = auc_mean + qt(1 - (1 - input$CI_level) / 2, df = n() - 1) * auc_sd / sqrt(n())
         )
