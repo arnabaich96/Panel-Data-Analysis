@@ -45,7 +45,6 @@ calculate_index <- function(data_cpep, data_gluc) {
 }
 
 # UI ----------------------------------------------------------------------
-
 ui <- fluidPage(
   tags$head(
     tags$style(HTML("
@@ -71,15 +70,21 @@ ui <- fluidPage(
            radioButtons("Treatment", "Visualization:",
                         choices = c("Pooled", "Individual"),
                         selected = "Pooled"),
-           radioButtons("plotvariable", "Variable for X-axis",
-                        choices = c("Visit", "Time"),
-                        selected = "Visit")
+           conditionalPanel(
+             condition = "input.Measurement != 'Index'",
+             radioButtons("plotvariable", "Variable for X-axis",
+                          choices = c("Visit", "Time"),
+                          selected = "Visit")
+           )
     ),
     column(3,
            checkboxInput("Summary", "Summary", value = FALSE),
-           checkboxInput("showAUC", "AUC", value = FALSE),
            conditionalPanel(
-             condition = "input.Treatment == 'Pooled'",
+             condition = "input.Measurement != 'Index'",
+             checkboxInput("showAUC", "AUC", value = FALSE)
+           ),
+           conditionalPanel(
+             condition = "input.Treatment == 'Pooled' && input.Measurement != 'Index'",
              checkboxInput("CI", "Confidence Interval", value = FALSE)
            ),
            checkboxInput("showPlot", "Show Plot", value = TRUE),
@@ -93,18 +98,18 @@ ui <- fluidPage(
                          selected = "mean")
            ),
            conditionalPanel(
-             condition = "input.showAUC == true && input.Treatment != 'Individual'",
+             condition = "input.showAUC == true && input.Treatment != 'Individual' && input.Measurement != 'Index'",
              selectInput("AUC_SummaryType", "AUC Summary:",
                          choices = c("mean", "sd", "median", "min", "max", "IQR"),
                          selected = "mean")
            ),
            conditionalPanel(
-             condition = "input.Treatment == 'Pooled' && input.CI == true",
+             condition = "input.Treatment == 'Pooled' && input.CI == true && input.Measurement != 'Index'",
              sliderInput("CI_level", "Confidence Level",
                          min = 0.8, max = 1, value = 0.95, step = 0.025)
            ),
            conditionalPanel(
-             condition = "input.Treatment == 'Individual'",
+             condition = "input.Treatment == 'Individual' && input.Measurement != 'Index'",
              uiOutput("individualSelect")
            )
     ),
@@ -133,9 +138,12 @@ ui <- fluidPage(
              uiOutput("AUCSummary_raw")
            ),
            conditionalPanel(
-             condition = "input.Measurement == 'Index'",
-             plotlyOutput("IndexPlot_raw"),
-             uiOutput("IndexSummary_raw")
+             condition = "input.showPlot == true && input.Measurement == 'Index'",
+             plotlyOutput("IndexPlot_raw")
+            ),
+           conditionalPanel(
+             condition = "input.showTable == true && input.Measurement == 'Index'",
+                            uiOutput("IndexSummary_raw")
            )
     ),
     column(6,
@@ -157,13 +165,17 @@ ui <- fluidPage(
              uiOutput("AUCSummary_imputed")
            ),
            conditionalPanel(
-             condition = "input.Measurement == 'Index'",
-             plotlyOutput("IndexPlot_imputed"),
+             condition = "input.showPlot == true && input.Measurement == 'Index'",
+             plotlyOutput("IndexPlot_imputed")
+           ),
+           conditionalPanel(
+             condition = "input.showTable == true && input.Measurement == 'Index'",
              uiOutput("IndexSummary_imputed")
            )
     )
   )
 )
+
 
 # Server ------------------------------------------------------------------
 
@@ -190,10 +202,24 @@ server <- function(input, output, session) {
 
   # UI for selecting individual IDs
   output$individualSelect <- renderUI({
-    selectInput("selectedID", "Select ID:",
-                choices = unique(data()$raw$cpep$ID),
-                selected = unique(data()$raw$cpep$ID)[1])
+    if(input$Measurement == "Index"){
+      # Use the combined Index dataset
+      selectInput("selectedID", "Select ID:",
+                  choices = unique(data()$raw$cpep$ID),
+                  selected = unique(data()$raw$cpep$ID)[1])
+    } else if (input$Measurement %in% c("Glucose", "C-peptide")) {
+      # Use the dataset corresponding to Glucose or C-peptide
+      selectInput("selectedID", "Select ID:",
+                  choices = unique(data()$raw$ID),
+                  selected = unique(data()$raw$ID)[1])
+    } else {
+      # Default behavior in case of unexpected input$Measurement value
+      selectInput("selectedID", "Select ID:",
+                  choices = NULL,
+                  selected = NULL)
+    }
   })
+
 
   # Interaction Plot for Raw Data (Left Column) using plotly
   output$InteractionPlot_raw <- renderPlotly({
