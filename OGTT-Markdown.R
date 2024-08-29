@@ -1,13 +1,4 @@
----
-title: "OGTT-RMD"
-author: "Arnab Aich"
-output:
-  pdf_document: default
-  html_document: default
----
-
-```{r setup, include=FALSE, echo=FALSE }
-knitr::opts_chunk$set(echo = FALSE,comment = NA)
+## ----setup, include=FALSE, echo=FALSE------------------------------------------------------------------------
 library(tidyverse)
 library(rio)
 library(openxlsx)
@@ -15,17 +6,17 @@ library(ggplot2)
 library(mice)
 library(gridExtra)
 library(readr)
-```
 
-```{r Get cohorts}
+
+## ----Get cohorts---------------------------------------------------------------------------------------------
 cohort <- import("data/Subject IDs by MAD cohort 2024-05-23.xlsx")
-```
 
-```{r First dose datetime, take baseline labs as last value prior to first dose}
+
+## ----First dose datetime, take baseline labs as last value prior to first dose-------------------------------
 #names(ex_edc); unique(ds_edc$`Cohort: (display value) (COHORT_DEC)`)
 ex_edc <- import("data/ex.xlsx") |>
   filter(str_detect(`Visit Name (VISNAME)`,"Day 1")) |>
-  filter(!str_detect(`Visit Name (VISNAME)`,"Day 14")) |> 
+  filter(!str_detect(`Visit Name (VISNAME)`,"Day 14")) |>
   filter(`Was dose taken? (EXYN)` == "Y") |>
   left_join(cohort, by=c("Subject Identifier (SUBNUM)"="Subject ID Assigned")) |>
   select(-c(`Site Number (SITENUM)`, `Internal Subject Id (SUBID)`,`Visit Id (VISITID)`:`Page Not Done (EXND)`,
@@ -43,15 +34,15 @@ ex_edc <- import("data/ex.xlsx") |>
 # names(ex_edc_db2); unique(ds_edc$`Cohort: (display value) (COHORT_DEC)`)
 ex_edc_db2 <- import("data/ex DB2.xlsx") |>
   filter(str_detect(`Visit Name (VISNAME)`,"Day 1")) |>
-  filter(!str_detect(`Visit Name (VISNAME)`,"Day 14")) |> 
+  filter(!str_detect(`Visit Name (VISNAME)`,"Day 14")) |>
   filter(`Was dose taken? (EXYN)` == "Y")|>
   select(`Subject Identifier (SUBNUM)`, `Date: (EXSTDAT)`, `Time: (EXSTTIM)`)
 
 first_dose <- bind_rows(ex_edc, ex_edc_db2) |>
   right_join(cohort, by=c("Subject Identifier (SUBNUM)"="Subject ID Assigned"))
-```
 
-```{r OGTT start times}
+
+## ----OGTT start times----------------------------------------------------------------------------------------
 
 OGTT_times_db1 <- import("data/ag.xlsx") |>
   inner_join(cohort, by=c("Subject Identifier (SUBNUM)"="Subject ID Assigned")) |>
@@ -60,7 +51,7 @@ OGTT_times_db1 <- import("data/ag.xlsx") |>
          `OGTT Procedure Date: (AGSTDAT)`,
          `Glucose Consumption Start Time: (AGSTTIM)`) |>
   filter(!is.na(`Glucose Consumption Start Time: (AGSTTIM)`)) |>
-  mutate(Visit = ifelse(str_detect(`Visit Name (VISNAME)`, "4 \\(M"), "Day 14", `Visit Name (VISNAME)`)) 
+  mutate(Visit = ifelse(str_detect(`Visit Name (VISNAME)`, "4 \\(M"), "Day 14", `Visit Name (VISNAME)`))
 
 OGTT_times_db2 <- import("data/ag DB2.xlsx") |>
   inner_join(cohort, by=c("Subject Identifier (SUBNUM)"="Subject ID Assigned")) |>
@@ -69,15 +60,15 @@ OGTT_times_db2 <- import("data/ag DB2.xlsx") |>
          `OGTT Procedure Date: (AGSTDAT)`,
          `Glucose Consumption Start Time: (AGSTTIM)`) |>
   filter(!is.na(`Glucose Consumption Start Time: (AGSTTIM)`)) |>
-  mutate(Visit = ifelse(str_detect(`Visit Name (VISNAME)`, "4 \\(M"), "Day 14", `Visit Name (VISNAME)`)) 
+  mutate(Visit = ifelse(str_detect(`Visit Name (VISNAME)`, "4 \\(M"), "Day 14", `Visit Name (VISNAME)`))
 
 OGTT_times <- bind_rows(OGTT_times_db1, OGTT_times_db2) |>
   select(-`Visit Name (VISNAME)`)
 
  # rm(OGTT_times_db1, OGTT_times_db2)
-```
 
-```{r PPD CL data}
+
+## ----PPD CL data---------------------------------------------------------------------------------------------
 PPD_lb_tnsf_gluc_insulin <- import("data/glucose insulin cpeptide all MAD cohorts 2024-05-23.xlsx") |>
   rename(`Subject level ID or Number (SUBJID)`=`Subject ID or Number (SUBJID)`,
          `lab date (lbdt)`=`LBDT (LBDT)`,
@@ -104,12 +95,12 @@ PPD_lb_tnsf_gluc_insulin <- import("data/glucose insulin cpeptide all MAD cohort
          `Test ID (TSTCD)`,
          `Test Name ID (TSTNAM)`:`Transaction Type (TRNSTYP)`
   ) |>
-  mutate(`lab date` = ymd(`lab date (lbdt)`)) 
+  mutate(`lab date` = ymd(`lab date (lbdt)`))
 
 # unique(PPD_lb_tnsf_gluc_insulin$`Lab Test Name (LBTEST)`)
-```
 
-```{r Begin Cpeptide work filter PPD CL to cpeptide, include=FALSE}
+
+## ----Begin Cpeptide work filter PPD CL to cpeptide, include=FALSE--------------------------------------------
 PPD_lb_tnsf_cpeptide <- PPD_lb_tnsf_gluc_insulin |> # names(PPD_lb_tnsf_gluc_insulin)
   filter(`Lab Test Name (LBTEST)` == "C Peptide") |>
   select(`Subject level ID or Number (SUBJID)`,
@@ -129,10 +120,10 @@ PPD_lb_tnsf_cpeptide <- PPD_lb_tnsf_gluc_insulin |> # names(PPD_lb_tnsf_gluc_ins
          `Reported Units (RPTU)`,
          `lab date`)
 # head(PPD_lb_tnsf_cpeptide)
-```
 
-```{r All cpeptide around the OGTT test ,include=FALSE}
-all_dat_cpep <- OGTT_times |> # filtering cpeptide data to OGTT collection times 
+
+## ----All cpeptide around the OGTT test ,include=FALSE--------------------------------------------------------
+all_dat_cpep <- OGTT_times |> # filtering cpeptide data to OGTT collection times
   left_join(PPD_lb_tnsf_cpeptide, by=c("Subject Identifier (SUBNUM)"="Subject level ID or Number (SUBJID)",
                                        "OGTT Procedure Date: (AGSTDAT)"="lab date")
   ) |>
@@ -143,7 +134,7 @@ all_dat_cpep <- OGTT_times |> # filtering cpeptide data to OGTT collection times
                                   "Pre OGTT start",
                                   "Post OGTT start"),
          `Visit label` = factor(Visit,
-                                levels = c("Day -1", "Day 7", "Day 14", "Day 21", "Day 28", "Week 8", 
+                                levels = c("Day -1", "Day 7", "Day 14", "Day 21", "Day 28", "Week 8",
                                            "Week 12", "Week 16", "Week 20", "Week 26", "Unscheduled")
          )
   ) |>
@@ -156,9 +147,9 @@ all_dat_cpep <- OGTT_times |> # filtering cpeptide data to OGTT collection times
                                                          "C Peptide","C Peptide 6hr","C Peptide 8hr","C Peptide 10hr"))
 head(all_dat_cpep)
 colnames(all_dat_cpep)
-```
 
-```{r Begin glucose work filter PPD CL to glucose , include=FALSE}
+
+## ----Begin glucose work filter PPD CL to glucose , include=FALSE---------------------------------------------
 PPD_lb_tnsf_glucose <- PPD_lb_tnsf_gluc_insulin |> # names(PPD_lb_tnsf_gluc_insulin)
   filter(`Lab Test Name (LBTEST)` %in% c("Glucose", "Glucose, Random")) |>
   filter(!`Additional Test Description (TSTDESC)` == "Chemistry") |>
@@ -179,10 +170,10 @@ PPD_lb_tnsf_glucose <- PPD_lb_tnsf_gluc_insulin |> # names(PPD_lb_tnsf_gluc_insu
          `Reported Units (RPTU)`,
          `lab date`)
 head(PPD_lb_tnsf_glucose)
-```
 
-```{r All cpeptide around the OGTT test, include=FALSE}
-all_dat_gluc <- OGTT_times |> # filtering cpeptide data to OGTT collection times 
+
+## ----All cpeptide around the OGTT test, include=FALSE--------------------------------------------------------
+all_dat_gluc <- OGTT_times |> # filtering cpeptide data to OGTT collection times
   left_join(PPD_lb_tnsf_glucose, by=c("Subject Identifier (SUBNUM)"="Subject level ID or Number (SUBJID)",
                                        "OGTT Procedure Date: (AGSTDAT)"="lab date")
   ) |>
@@ -195,7 +186,7 @@ all_dat_gluc <- OGTT_times |> # filtering cpeptide data to OGTT collection times
          `Visit label` = factor(ifelse(str_detect(`Visit`, "MAD2"),
                                        "Day 14",
                                        `Visit`),
-                                levels = c("Day -1", "Day 7", "Day 14", "Day 21", "Day 28",  "Week 8", 
+                                levels = c("Day -1", "Day 7", "Day 14", "Day 21", "Day 28",  "Week 8",
                                            "Week 12", "Week 16", "Week 20", "Week 26")
          )
   ) |>
@@ -206,14 +197,12 @@ all_dat_gluc <- OGTT_times |> # filtering cpeptide data to OGTT collection times
           `Additional Test Description (TSTDESC)`) |>
   filter(!`Additional Test Description (TSTDESC)` %in% c("Plasma Glucose 6hr","Plasma Glucose 8hr","Plasma Glucose 10hr",
                                                          "Plasma Glucose 12hr","Plasma Glucose 14hr","Plasma Glucose 16hr","Plasma Glucose 26hr",
-                                                         "OGTT Plasma Glucose 6hr","OGTT Plasma Glucose 10hr","C Peptide 8hr","C Peptide 10hr")) 
+                                                         "OGTT Plasma Glucose 6hr","OGTT Plasma Glucose 10hr","C Peptide 8hr","C Peptide 10hr"))
 head(all_dat_gluc)
 colnames(all_dat_gluc)
-```
 
-# Cpeptide data
 
-```{r include=FALSE}
+## ----include=FALSE-------------------------------------------------------------------------------------------
 data_cpep = data.frame(
 subject = all_dat_cpep$`Subject Identifier (SUBNUM)`,
 visit = all_dat_cpep$Visit,
@@ -226,9 +215,9 @@ head(data_cpep)
 table(data_cpep$visit)
 table(data_cpep$time)
 table(data_cpep$followup)
-```
 
-```{r sorting C-Peptide data for Imputation}
+
+## ----sorting C-Peptide data for Imputation-------------------------------------------------------------------
 data_cpep$time = case_when(
   data_cpep$time == "C Peptide 2hr" ~ "OGTT C Peptide 0 Min",
   data_cpep$time == "C Peptide 2.5hr" ~ "OGTT C Peptide 30 Min",
@@ -261,16 +250,14 @@ data_cpep$visit =  case_when(
 )
 table(data_cpep$time,data_cpep$treatment,data_cpep$visit)
 table(data_cpep$time)
-```
 
-```{r Plots Cpeptide data}
+
+## ----Plots Cpeptide data-------------------------------------------------------------------------------------
 cpep_time = ggplot(data_cpep, aes(x = result, y = time)) + geom_point() +theme_classic()
 cpep_visit = ggplot(data_cpep, aes(y = visit, x = result)) + geom_point() +theme_classic()
-```
 
-# Glucose data
 
-```{r include=FALSE}
+## ----include=FALSE-------------------------------------------------------------------------------------------
 data_gluc = data.frame(
 subject = all_dat_gluc$`Subject Identifier (SUBNUM)`,
 visit = all_dat_gluc$Visit,
@@ -281,9 +268,9 @@ result = all_dat_gluc$`Reported Numeric Result (RPTRESN)`)
 head(data_gluc)
 table(data_gluc$visit)
 table(data_gluc$time)
-```
 
-```{r sorting Glucose Data for Imputation}
+
+## ----sorting Glucose Data for Imputation---------------------------------------------------------------------
 data_gluc$time = case_when(
   data_gluc$time == "Plasma Glucose 2hr" ~ "OGTT Plasma Glucose 0 Min",
   data_gluc$time == "Plasma Glucose 2.5hr" ~ "OGTT Plasma Glucose 30 Min",
@@ -317,24 +304,19 @@ data_gluc$visit =  case_when(
 )
 table(data_gluc$visit)
 table(data_gluc$time)
-```
 
 
-```{r  Plots Glucose data ,include=FALSE}
+## ----Plots Glucose data ,include=FALSE-----------------------------------------------------------------------
 gluc_time = ggplot(data_gluc, aes(x = result, y = time)) + geom_point() + theme_classic()
 gluc_visit = ggplot(data_gluc, aes(x = result,y  = visit)) + geom_point()  + theme_classic()
-```
 
-# Plots Cpeptide and Glucose
 
-```{r eval=FALSE, include=FALSE}
-grid.arrange(cpep_visit, gluc_visit,cpep_time,gluc_time, ncol = 2)
-ggplot(data_cpep, aes(x = time, y = result , color = visit )) + geom_point(size = 1) +theme_classic()+ ggtitle("C-Peptide")
-```
+## ----eval=FALSE, include=FALSE-------------------------------------------------------------------------------
+## grid.arrange(cpep_visit, gluc_visit,cpep_time,gluc_time, ncol = 2)
+## ggplot(data_cpep, aes(x = time, y = result , color = visit )) + geom_point(size = 1) +theme_classic()+ ggtitle("C-Peptide")
 
-# Cpeptide Interaction plot
 
-```{r echo=FALSE, warning=FALSE}
+## ----echo=FALSE, warning=FALSE-------------------------------------------------------------------------------
 data_cpep$time = factor(data_cpep$time, levels = c("0hr", "0.5hr", "1hr", "1.5hr", "2hr"))
 data_cpep$visit = factor(data_cpep$visit, levels = c("0", "2", "4", "8", "12", "16", "20", "26"))
 grid.arrange(
@@ -370,9 +352,9 @@ ggplot(data_cpep, aes(x = visit, y = result, color = time, group =time )) +
        color = "Time") +
   theme_classic()
 ,nrow = 2)
-```
 
-```{r Imputation for c-peptide, message=FALSE, warning=FALSE, include=FALSE}
+
+## ----Imputation for c-peptide, message=FALSE, warning=FALSE, include=FALSE-----------------------------------
 # Create a complete grid of factor combinations
 all_combinations <- expand.grid(
   visit = unique(data_cpep$visit),
@@ -388,11 +370,9 @@ data_complete_cpep=complete(mice(data_cpep, m = 50, method = 'pmm', seed = 123))
 dim(data_complete_cpep)
 write.csv(data_complete_cpep, "data/data_cpep_mice.csv")
 data_gluc <- read_csv("data/data_cpep_mice.csv")
-```
 
-# cpepetide interaction plot complete data
 
-```{r echo=FALSE}
+## ----echo=FALSE----------------------------------------------------------------------------------------------
 data_complete_cpep$time = factor(data_complete_cpep$time, levels = c("0hr", "0.5hr", "1hr", "1.5hr", "2hr"))
 data_complete_cpep$visit = factor(data_complete_cpep$visit, levels = c("0", "2", "4", "8", "12", "16", "20", "26"))
 grid.arrange(
@@ -428,12 +408,9 @@ ggplot(data_complete_cpep, aes(x = visit, y = result, color = time, group =time 
        color = "Time") +
   theme_classic()
 ,nrow = 2)
-```
 
 
-# Glucose Interaction plot
-
-```{r}
+## ------------------------------------------------------------------------------------------------------------
 data_gluc$time = factor(data_gluc$time, levels = c("0hr", "0.5hr", "1hr", "1.5hr", "2hr"))
 data_gluc$visit = factor(data_gluc$visit, levels = c("0", "2", "4", "8", "12", "16", "20", "26"))
 grid.arrange(
@@ -470,10 +447,9 @@ ggplot(data_gluc, aes(x = visit, y = result, color = time, group =time )) +
   theme_classic()
 
 ,nrow = 2)
-```
 
 
-```{r Glucose Imputation, message=FALSE, warning=FALSE, include=FALSE}
+## ----Glucose Imputation, message=FALSE, warning=FALSE, include=FALSE-----------------------------------------
 # Create a complete grid of factor combinations
 all_combinations <- expand.grid(
   subject = unique(data_gluc$subject),
@@ -489,11 +465,9 @@ data_complete_gluc=complete(mice(data_gluc,m=50, method = 'pmm', seed = 123))
 dim(data_complete_gluc)
 write.csv(data_complete_gluc, "data/data_gluc_mice.csv")
 data_gluc <- read_csv("data/data_gluc_mice.csv")
-```
 
-# Glucose interaction plot complete data
 
-```{r echo=FALSE}
+## ----echo=FALSE----------------------------------------------------------------------------------------------
 data_complete_gluc$time = factor(data_complete_gluc$time, levels = c("0hr", "0.5hr", "1hr", "1.5hr", "2hr"))
 data_complete_gluc$visit = factor(data_complete_gluc$visit, levels = c("0", "2", "4", "8", "12", "16", "20", "26"))
 grid.arrange(
@@ -529,9 +503,5 @@ ggplot(data_complete_gluc, aes(x = visit, y = result, color = time, group =time 
        color = "Time") +
   theme_classic()
 ,nrow = 2)
-
-```
-
-
 
 
