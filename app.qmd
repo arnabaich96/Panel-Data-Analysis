@@ -8,42 +8,380 @@ format:
     toc: true
     toc-title: "Table of Contents"
     code-fold: true
+    self_contained: true
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+    social: menu
+    source_code: embed
+    storyboard: true
+    storyboard_options:
+      size: medium
+      theme: dark
+      scroll: true
+    
 editor: source
 runtime: shiny
-self_contained: true
 ---
+---
+title: "Handling Missing Values in Panel Data with the `mice` Package"
+output: html_document
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+source("data_clean.R")
+library(shiny)
+library(plotly)
+library(dplyr)
+library(mice)
+library(shinyjs)
+library(gt)
+library(shinyWidgets) 
+library(shinycssloaders)
+
+```
+## Introduction to Missing Value Analysis in Panel Data
+
+Missing value analysis is crucial in ensuring the accuracy and validity of data analyses, especially in panel data which involves observations over time for the same subjects or entities. This type of data is particularly prone to missing entries due to various factors like attrition or non-response, which can introduce bias and affect the conclusions if not properly managed.
+
+### Challenges in Panel Data
+
+Panel data's unique challenges stem from:
+
+- **Time Dependence**: Missing values may depend on the time sequence or previous values, complicating their imputation.
+- **Inter-Subject Variability**: Variability across subjects can lead to distinct patterns of missingness, requiring nuanced imputation strategies.
+
+## `mice` in Panel Data Context
+
+The `mice` package in R, standing for Multivariate Imputation by Chained Equations, offers a sophisticated solution for handling missing data in panel datasets. It performs multiple imputation, creating several plausible fill-ins for missing data points which are then analyzed to account for the uncertainty inherent in the process of guessing these values.
+
+### Advantages for Panel Data
+
+Using `mice` in panel data settings is advantageous as it:
+
+- Handles complex missing data scenarios where missingness is dependent on time and other variables.
+- Utilizes all available data to inform the imputation process, thereby enhancing the accuracy and reliability of the data analysis.
+
+## Using the `mice` Package
+
+Before implementing `mice`, ensure your data is appropriately formatted, with subjects and their observations over time clearly structured and missing values marked as `NA`.
+
+### Installation and Setup
+
+The `mice` package can be installed and loaded into an R environment using standard package management commands. It is essential to have the package ready before starting the imputation process.
+
+### Running the Imputation
+
+1. **Define the Imputation Model**: Set up the imputation method for each variable in your dataset. `mice` can automatically select suitable methods or allow for manual specification based on detailed knowledge of the data.
+2. **Execute Imputation**: Use the `mice()` function, specifying the number of imputations to generate. This function applies a series of predictive models, each conditioning on other variables, to iteratively fill in missing values across multiple cycles.
+```{r}
+# UI for Imputation App
+ui <- fluidPage(
+  tags$head(
+    tags$style(HTML("
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #e8f5e9;
+            color: #1b5e20;
+            padding: 20px;
+        }
+        .container-fluid {
+            padding-left: 50px;
+            padding-right: 50px;
+        }
+        h1, h3 {
+            font-size: 22px;
+            text-align: center;
+            color: #1b5e20;
+            margin-bottom: 15px;
+            font-weight: bold;
+        }
+        .form-group {
+            margin-bottom: 10px;
+        }
+        .well {
+            background-color: #ffffff;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+            margin-bottom: 10px;
+        }
+        .progress-bar-container {
+            background-color: #f3f3f3;
+            border-radius: 13px;
+            padding: 3px;
+            margin-top: 10px;
+            margin-bottom: 10px;
+            width: 100%;
+            height: 30px;
+        }
+        .progress-bar {
+            height: 100%;
+            border-radius: 10px;
+            background-color: #388e3c;
+            width: 0%;
+            text-align: center;
+            line-height: 24px;
+            color: white;
+            font-weight: bold;
+        }
+    "))
+  ),
+  
+  titlePanel("Data Imputation App"),
+  
+  fluidRow(
+    column(12,
+           div(class = "well",
+               fluidRow(
+                 column(4,
+                        numericInput("mValue", "Number of Imputations (m):", value = 5, min = 1)
+                 ),
+                 column(4,
+                        selectInput("method", "Imputation Method:",
+                                    choices = c("pmm", "mean", "norm", "norm.boot", "logreg"),
+                                    selected = "pmm")
+                 ),
+                 column(4,
+                        numericInput("seedValue", "Random Seed:", value = 123)
+                 )
+               )
+           )
+    )
+  ),
+  
+  fluidRow(
+    column(12,
+           div(class = "well",
+               actionButton("runBtn", "Run Imputation", class = "btn-primary", style = "display: block; margin: 0 auto;")
+           )
+    )
+  ),
+  
+  fluidRow(
+    column(6,
+           div(class = "well",
+               h3("C-peptide Data Imputation"),
+               uiOutput("cpepProgressContainer"),    # This is where the progress bar will go
+               textOutput("cpepStatus")
+           )
+    ),
+    column(6,
+           div(class = "well",
+               h3("Glucose Data Imputation"),
+               uiOutput("glucProgressContainer"),    # This is where the progress bar will go
+               textOutput("glucStatus")
+           )
+    )
+  ),
+  
+  # JavaScript code to update the progress bar
+  tags$script(HTML("
+    Shiny.addCustomMessageHandler('updateProgressBar', function(message) {
+      var elem = document.getElementById(message.id);
+      elem.style.width = message.value + '%';
+      elem.innerHTML = message.value + '%';
+    });
+  "))
+)
+
+# Server for Imputation App
+server <- function(input, output, session) {
+  
+  observeEvent(input$runBtn, {
+    
+    # C-peptide Data Imputation Progress
+    output$cpepProgressContainer <- renderUI({
+      tags$div(class = "progress-bar-container",
+               tags$div(id = "cpepProgressBar", class = "progress-bar", "0%")
+      )
+    })
+    
+    for (i in 1:10) {
+      Sys.sleep(0.5)  # Simulating computation
+      progress_value <- i * 10
+      session$sendCustomMessage(type = 'updateProgressBar', message = list(id = 'cpepProgressBar', value = progress_value))
+    }
+    
+    # Perform C-peptide data imputation
+    data_cpep_mice <- complete(mice(data_cpep, m = input$mValue, method = input$method, seed = input$seedValue))
+    assign("data_cpep_imputed", data_cpep_mice, envir = .GlobalEnv)
+    
+    output$cpepStatus <- renderText({
+      "C-peptide data is ready for visualization."
+    })
+    
+    # Glucose Data Imputation Progress
+    output$glucProgressContainer <- renderUI({
+      tags$div(class = "progress-bar-container",
+               tags$div(id = "glucProgressBar", class = "progress-bar", "0%")
+      )
+    })
+    
+    for (i in 1:10) {
+      Sys.sleep(0.5)  # Simulating computation
+      progress_value <- i * 10
+      session$sendCustomMessage(type = 'updateProgressBar', message = list(id = 'glucProgressBar', value = progress_value))
+    }
+    
+    # Perform Glucose data imputation
+    data_gluc_mice <- complete(mice(data_gluc, m = input$mValue, method = input$method, seed = input$seedValue))
+    assign("data_gluc_imputed", data_gluc_mice, envir = .GlobalEnv)
+    
+    output$glucStatus <- renderText({
+      "Glucose data is ready for visualization."
+    })
+  })
+}
+
+# Run the application
+shinyApp(ui = ui, server = server)
+
+
+
+```
+
+
 # Step 2: Generate Summary Plots
 
 ## Summary Plots App
 
-```{r}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
-library(shiny)
-library(plotly)
-library(dplyr)
+```{r }
 
-# UI for Summary Plots
-ui_summary_plots <- fluidPage(
-    titlePanel("Summary Plots"),
-    fluidRow(
-        column(2,
+# UI for the App
+ui <- fluidPage(
+  useShinyjs(),  # Enable shinyjs for showing/hiding UI elements
+
+  # Include CSS directly in the app
+  tags$head(
+    tags$style(HTML("
+      body {
+          font-family: 'Arial', sans-serif;
+          background-color: #e8f5e9;
+          color: #1b5e20;
+          padding: 20px;
+      }
+      .container-fluid {
+          padding-left: 50px;
+          padding-right: 50px;
+      }
+      h1, h3 {
+          font-size: 22px;
+          text-align: center;
+          color: #1b5e20;
+          margin-bottom: 15px;
+          font-weight: bold;
+      }
+      .form-group {
+          margin-bottom: 10px;
+      }
+      .well {
+          background-color: #ffffff;
+          padding: 15px;
+          border-radius: 10px;
+          box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+          margin-bottom: 10px;
+      }
+      .col-centered {
+          margin: 0 auto;
+          float: none;
+      }
+      .btn-primary {
+          background-color: #388e3c;
+          border-color: #388e3c;
+          font-size: 16px;
+      }
+      .btn-primary:hover {
+          background-color: #2e7d32;
+          border-color: #2e7d32;
+      }
+    "))
+  ),
+
+  # Main UI Elements
+  fluidRow(
+    column(4,
+           div(class = "well",
                h3("Options"),
                radioButtons("Measurement", "Measurement:", choices = c("Glucose", "C-peptide"), selected = "C-peptide", inline = TRUE),
                radioButtons("Treatment", "Visualization:", choices = c("Pooled", "Individual"), selected = "Pooled", inline = TRUE),
-               radioButtons("plotvariable", "Interaction Plot Variable:", choices = c("Visit", "Time"), selected = "Visit", inline = TRUE),
-               checkboxInput("showPlot", "Show Plot", value = TRUE)
-        ),
-        column(10, plotlyOutput("InteractionPlot"))
+               conditionalPanel(
+                 condition = "input.Measurement != 'Index'",
+                 radioButtons("plotvariable", "Interaction Plot Variable:", choices = c("Visit", "Time"), selected = "Visit", inline = TRUE)
+               )
+           )
+    ),
+    column(4,
+           div(class = "well",
+               h3("Additional Settings"),
+               conditionalPanel(condition = "input.Treatment != 'Individual",
+               checkboxInput("Summary", "Summary", value = FALSE)
+               ),
+                conditionalPanel(condition = "input.Treatment != 'Individual",
+               checkboxInput("CI", "Confidence Interval", value = FALSE)
+                )
+           )
+    ),
+    column(4,
+           div(class = "well",
+               h3("Summary Options"),
+               conditionalPanel(
+                 condition = "input.Summary == true && input.Treatment != 'Individual'",
+                 selectInput("SummaryType", "Summary:", choices = c("mean", "sd", "median", "min", "max", "IQR"), selected = "mean")
+               ),
+               conditionalPanel(
+                 condition = "input.Treatment == 'Pooled' && input.CI == true",
+                 sliderInput("CI_level", "Confidence Level", min = 0.8, max = 1, value = 0.95, step = 0.025)
+               ),
+               conditionalPanel(
+                 condition = "input.Treatment == 'Individual'",
+                 selectInput("selectedID", "Subject ID:", choices = unique(data_cpep$subject), selected = unique(data_cpep$subject)[1])
+           )
     )
-)
+  ),
 
-# Server for Summary Plots
-server_summary_plots <- function(input, output, session) {
-  source("data_clean.R")
+  # Run Button
+  fluidRow(
+    column(12,
+           div(class = "well",
+               actionButton("runBtn", "Run", class = "btn-primary", style = "display: block; margin: 0 auto;")
+           )
+    )
+  ),
+
+  # Plots and Tables
+  fluidRow(
+    column(6,
+           div(class = "well",
+               h3("Raw Data"),
+               plotlyOutput("InteractionPlot_raw", height = "400px"),
+               uiOutput("Summary_raw")
+           )
+    ),
+    column(6,
+           div(class = "well",
+               h3("Imputed Data"),
+               plotlyOutput("InteractionPlot_imputed", height = "400px"),
+               uiOutput("Summary_imputed")
+           )
+    )
+  )
+))
+
+# Server for the App
+server <- function(input, output, session) {
+  
+  # Initially hide plots and tables
+  hide("InteractionPlot_raw")
+  hide("Summary_raw")
+  hide("InteractionPlot_imputed")
+  hide("Summary_imputed")
+  
   imputed_data <- reactive({
-    data_cpep_mice <- complete(mice(data_cpep, m = 5, method = "pmm", seed = 123))
-    data_gluc_mice <- complete(mice(data_gluc, m = 5, method = "pmm", seed = 123))
-    list(cpep = data_cpep_mice, gluc = data_gluc_mice)
+    list(cpep = data_cpep_imputed, gluc = data_gluc_imputed)
   })
 
   data <- reactive({
@@ -54,179 +392,254 @@ server_summary_plots <- function(input, output, session) {
     }
   })
 
-  output$InteractionPlot <- renderPlotly({
-    req(input$showPlot)
-    plot_data <- data()$raw
-    plot_ly(plot_data, x = ~visit, y = ~result, color = ~time, type = 'scatter', mode = 'lines+markers') %>%
-      layout(title = "Raw Data Interaction Plot")
+  observeEvent(input$runBtn, {
+    # Show plots and tables after "Run" button is clicked
+    show("InteractionPlot_raw")
+    show("Summary_raw")
+    show("InteractionPlot_imputed")
+    show("Summary_imputed")
+
+    # Interaction Plot for Raw Data
+    output$InteractionPlot_raw <- renderPlotly({
+      plot_data <- data()$raw
+ 
+
+      if (input$Treatment == "Pooled") {
+        summary_data <- plot_data %>%
+          group_by(visit, time) %>%
+          summarise(
+            Measurement_mean = round(match.fun(input$SummaryType)(result, na.rm = TRUE), 3),
+            Measurement_sd = sd(result, na.rm = TRUE),
+            Measurement_lower = Measurement_mean - qt(1 - (1 - input$CI_level) / 2, df = n() - 1) * Measurement_sd / sqrt(n()),
+            Measurement_upper = Measurement_mean + qt(1 - (1 - input$CI_level) / 2, df = n() - 1) * Measurement_sd / sqrt(n())
+          ) %>%
+          ungroup()
+
+        plot <- switch(input$plotvariable,
+                       "Visit" = {
+                         plot_ly(summary_data, x = ~visit, y = ~Measurement_mean, color = ~time, type = 'scatter', mode = 'lines+markers') %>%
+                           layout(
+                             xaxis = list(title = "Visit"),
+                             yaxis = list(title = paste(input$Measurement)),
+                             legend = list(orientation = 'h', x = 0.5, xanchor = 'center', y = -0.2),
+                             title = paste("Summary:", input$SummaryType)
+                           )
+                       },
+                       "Time" = {
+                         plot_ly(summary_data, x = ~time, y = ~Measurement_mean, color = ~visit, type = 'scatter', mode = 'lines+markers') %>%
+                           layout(
+                             xaxis = list(title = "Time"),
+                             yaxis = list(title = paste(input$Measurement)),
+                             legend = list(orientation = 'h', x = 0.5, xanchor = 'center', y = -0.2),
+                             title = paste("Summary:", input$SummaryType)
+                           )
+                       })
+
+        if (input$CI) {
+          plot <- plot %>%
+            add_ribbons(
+              ymin = ~Measurement_lower, ymax = ~Measurement_upper,
+              line = list(color = 'transparent'),
+              fillcolor = ~paste0("rgba(", col2rgb("red")[1], ",", col2rgb("red")[2], ",", col2rgb("red")[3], ",0.2)"),
+              hoverinfo = "none",
+              showlegend = FALSE
+            )
+        }
+
+      } else if (input$Treatment == "Individual") {
+        plot_data <- plot_data %>% filter(subject == input$selectedID)
+
+        plot <- switch(input$plotvariable,
+                       "Visit" = {
+                         plot_ly(plot_data, x = ~visit, y = ~result, color = ~time, type = 'scatter', mode = 'lines+markers') %>%
+                           layout(
+                             xaxis = list(title = "Visit"),
+                             yaxis = list(title = paste(input$Measurement)),
+                             legend = list(orientation = 'h', x = 0.5, xanchor = 'center', y = -0.2),
+                             title = paste("Subject ID:", input$selectedID)
+                           )
+                       },
+                       "Time" = {
+                         plot_ly(plot_data, x = ~time, y = ~result, color = ~visit, type = 'scatter', mode = 'lines+markers') %>%
+                           layout(
+                             xaxis = list(title = "Time"),
+                             yaxis = list(title = paste(input$Measurement)),
+                             legend = list(orientation = 'h', x = 0.5, xanchor = 'center', y = -0.2),
+                             title = paste("Subject ID:", input$selectedID)
+                           )
+                       })
+      }
+
+      plot
+    })
+
+    # Interaction Plot for Imputed Data
+    output$InteractionPlot_imputed <- renderPlotly({
+      plot_data <- data()$imputed
+      if (input$Treatment == "Pooled") {
+        summary_data <- plot_data %>%
+          group_by(visit, time) %>%
+          summarise(
+            Measurement_mean = round(match.fun(input$SummaryType)(result, na.rm = TRUE), 3),
+            Measurement_sd = sd(result, na.rm = TRUE),
+            Measurement_lower = Measurement_mean - qt(1 - (1 - input$CI_level) / 2, df = n() - 1) * Measurement_sd / sqrt(n()),
+            Measurement_upper = Measurement_mean + qt(1 - (1 - input$CI_level) / 2, df = n() - 1) * Measurement_sd / sqrt(n())
+          ) %>%
+          ungroup()
+
+        plot <- switch(input$plotvariable,
+                       "Visit" = {
+                         plot_ly(summary_data, x = ~visit, y = ~Measurement_mean, color = ~time, type = 'scatter', mode = 'lines+markers') %>%
+                           layout(
+                             xaxis = list(title = "Visit"),
+                             yaxis = list(title = paste(input$Measurement)),
+                             legend = list(orientation = 'h', x = 0.5, xanchor = 'center', y = -0.2),
+                             title = paste("Summary:", input$SummaryType)
+                           )
+                       },
+                       "Time" = {
+                         plot_ly(summary_data, x = ~time, y = ~Measurement_mean, color = ~visit, type = 'scatter', mode = 'lines+markers') %>%
+                           layout(
+                             xaxis = list(title = "Time"),
+                             yaxis = list(title = paste(input$Measurement)),
+                             legend = list(orientation = 'h', x = 0.5, xanchor = 'center', y = -0.2),
+                             title = paste("Summary:", input$SummaryType)
+                           )
+                       })
+
+        if (input$CI) {
+          plot <- plot %>%
+            add_ribbons(
+              ymin = ~Measurement_lower, ymax = ~Measurement_upper,
+              line = list(color = 'transparent'),
+              fillcolor = ~paste0("rgba(", col2rgb("red")[1], ",", col2rgb("red")[2], ",", col2rgb("red")[3], ",0.2)"),
+              hoverinfo = "none",
+              showlegend = FALSE
+            )
+        }
+
+      } else if (input$Treatment == "Individual") {
+        plot_data <- plot_data %>% filter(subject == input$selectedID)
+
+        plot <- switch(input$plotvariable,
+                       "Visit" = {
+                         plot_ly(plot_data, x = ~visit, y = ~result, color = ~time, type = 'scatter', mode = 'lines+markers') %>%
+                           layout(
+                             xaxis = list(title = "Visit"),
+                             yaxis = list(title = paste(input$Measurement)),
+                             legend = list(orientation = 'h', x = 0.5, xanchor = 'center', y = -0.2),
+                             title = paste("Subject ID:", input$selectedID)
+                           )
+                       },
+                       "Time" = {
+                         plot_ly(plot_data, x = ~time, y = ~result, color = ~visit, type = 'scatter', mode = 'lines+markers') %>%
+                           layout(
+                             xaxis = list(title = "Time"),
+                             yaxis = list(title = paste(input$Measurement)),
+                             legend = list(orientation = 'h', x = 0.5, xanchor = 'center', y = -0.2),
+                             title = paste("Subject ID:", input$selectedID)
+                           )
+                       })
+      }
+
+      plot
+    })
+
+    # Summary statistics for Raw Data
+    output$Summary_raw <- renderUI({
+      summary_data <- if (input$Treatment == "Pooled") {
+        data()$raw %>%
+          group_by(visit, time) %>%
+          summarise(result = round(match.fun(input$SummaryType)(result, na.rm = TRUE), 3)) %>%
+          pivot_wider(names_from = visit, values_from = result)
+      } else {
+        data()$raw %>%
+          filter(subject == input$selectedID) %>%
+          group_by(visit, time) %>%
+          summarise(result = round(result, 3)) %>%
+          pivot_wider(names_from = visit, values_from = result)  # Dynamic orientation
+      }
+
+      title_text <- if (input$Treatment == "Pooled") {
+        paste("Summary:", input$SummaryType)
+      } else {
+        paste("Subject ID:", input$selectedID)
+      }
+
+      gt_table <- gt(summary_data) %>%
+        tab_header(title = title_text) %>%
+        fmt_number(columns = everything(), decimals = 2) %>%
+        cols_align(align = "center", columns = everything()) %>%
+        tab_style(
+          style = list(
+            cell_fill(color = "lightgreen"),
+            cell_text(weight = "bold", color = "black")
+          ),
+          locations = cells_column_labels(everything())
+        ) %>%
+        tab_options(table.width = pct(100))
+
+      gt_output <- gt_table %>%
+        as_raw_html()
+
+      HTML(gt_output)
+    })
+  
+    # Summary statistics for Imputed Data
+    output$Summary_imputed <- renderUI({
+      summary_data <- if (input$Treatment == "Pooled") {
+        data()$imputed %>%
+          group_by(visit, time) %>%
+          summarise(result = round(match.fun(input$SummaryType)(result, na.rm = TRUE), 3)) %>%
+          pivot_wider(names_from = visit, values_from = result)
+      } else {
+        data()$imputed %>%
+          filter(subject == input$selectedID) %>%
+          group_by(visit, time) %>%
+          summarise(result = round(result, 3)) %>%
+          pivot_wider(names_from = visit, values_from = result)  # Dynamic orientation
+      }
+
+      title_text <- if (input$Treatment == "Pooled") {
+        paste("Summary:", input$SummaryType)
+      } else {
+        paste("Subject ID:", input$selectedID)
+      }
+
+      gt_table <- gt(summary_data) %>%
+        tab_header(title = title_text) %>%
+        fmt_number(columns = everything(), decimals = 2) %>%
+        cols_align(align = "center", columns = everything()) %>%
+        tab_style(
+          style = list(
+            cell_fill(color = "lightgreen"),
+            cell_text(weight = "bold", color = "black")
+          ),
+          locations = cells_column_labels(everything())
+        ) %>%
+        tab_options(table.width = pct(100))
+
+      gt_output <- gt_table %>%
+        as_raw_html()
+
+      HTML(gt_output)
+    })
   })
 }
 
-shinyApp(ui = ui_summary_plots, server = server_summary_plots)
+# Run the application
+shinyApp(ui = ui, server = server)
+
+
 ```
-# Step 5: Create Index
-Index Creation App
+
+# Step 3: Generate AUC
+
+## AUC calculation
+
+
 ```{r}
-library(shiny)
-library(dplyr)
-library(gt)
 
-# UI for Summary Tables
-ui_summary_tables <- fluidPage(
-    titlePanel("Summary Tables"),
-    fluidRow(
-        column(2,
-               h3("Options"),
-               radioButtons("Measurement", "Measurement:", choices = c("Glucose", "C-peptide"), selected = "C-peptide", inline = TRUE),
-               radioButtons("Treatment", "Visualization:", choices = c("Pooled", "Individual"), selected = "Pooled", inline = TRUE),
-               checkboxInput("Summary", "Summary", value = FALSE),
-               selectInput("SummaryType", "Summary Type:", choices = c("mean", "sd", "median", "min", "max", "IQR"), selected = "mean"),
-               checkboxInput("showTable", "Show Table", value = TRUE)
-        ),
-        column(10, uiOutput("SummaryTable"))
-    )
-)
-
-# Server for Summary Tables
-server_summary_tables <- function(input, output, session) {
-  source("data_clean.R")
-  imputed_data <- reactive({
-    data_cpep_mice <- complete(mice(data_cpep, m = 5, method = "pmm", seed = 123))
-    data_gluc_mice <- complete(mice(data_gluc, m = 5, method = "pmm", seed = 123))
-    list(cpep = data_cpep_mice, gluc = data_gluc_mice)
-  })
-
-  data <- reactive({
-    if (input$Measurement == "Glucose") {
-      list(raw = data_gluc, imputed = imputed_data()$gluc)
-    } else {
-      list(raw = data_cpep, imputed = imputed_data()$cpep)
-    }
-  })
-
-  output$SummaryTable <- renderUI({
-    req(input$showTable)
-    summary_data <- data()$raw %>%
-      group_by(visit, time) %>%
-      summarise(result = round(mean(result, na.rm = TRUE), 3)) %>%
-      pivot_wider(names_from = visit, values_from = result)
-    gt_table <- gt(summary_data) %>%
-      tab_header(title = "Raw Data Summary") %>%
-      fmt_number(columns = everything(), decimals = 2) %>%
-      cols_align(align = "center", columns = everything())
-    HTML(gt_table %>% as_raw_html())
-  })
-}
-
-shinyApp(ui = ui_summary_tables, server = server_summary_tables)
 ```
-# Step 5: Create Index
-Index Creation App
-```{r}
-library(shiny)
-library(plotly)
-library(dplyr)
 
-# UI for AUC Calculation
-ui_auc <- fluidPage(
-    titlePanel("AUC Calculation"),
-    fluidRow(
-        column(2, 
-               h3("Options"),
-               checkboxInput("showAUC", "Calculate AUC", value = TRUE)
-        ),
-        column(10, 
-               h3("Raw Data"), plotlyOutput("AUCPlot_raw"),
-               h3("Imputed Data"), plotlyOutput("AUCPlot_imputed")
-        )
-    )
-)
 
-# Server for AUC Calculation
-server_auc <- function(input, output, session) {
-  source("data_clean.R")
-  imputed_data <- reactive({
-    data_cpep_mice <- complete(mice(data_cpep, m = 5, method = "pmm", seed = 123))
-    data_gluc_mice <- complete(mice(data_gluc, m = 5, method = "pmm", seed = 123))
-    list(cpep = data_cpep_mice, gluc = data_gluc_mice)
-  })
-
-  data <- reactive({
-    auc_data <- function(data) {
-      data %>% group_by(subject, visit) %>% summarise(auc = sum(result, na.rm = TRUE))
-    }
-    list(raw = auc_data(data_cpep), imputed = auc_data(imputed_data()$cpep))
-  })
-
-  output$AUCPlot_raw <- renderPlotly({
-    req(input$showAUC)
-    plot_data <- data()$raw
-    plot_ly(plot_data, x = ~visit, y = ~auc, type = 'scatter', mode = 'lines+markers') %>%
-      layout(title = "Raw Data AUC")
-  })
-
-  output$AUCPlot_imputed <- renderPlotly({
-    req(input$showAUC)
-    plot_data <- data()$imputed
-    plot_ly(plot_data, x = ~visit, y = ~auc, type = 'scatter', mode = 'lines+markers') %>%
-      layout(title = "Imputed Data AUC")
-  })
-}
-
-shinyApp(ui = ui_auc, server = server_auc)
-```   
-# Step 5: Create Index
-Index Creation App
-```{r}
-library(shiny)
-library(plotly)
-library(dplyr)
-
-# UI for Index Creation
-ui_index <- fluidPage(
-    titlePanel("Index Creation"),
-    fluidRow(
-        column(2, 
-               h3("Options"),
-               checkboxInput("showIndex", "Create Index", value = TRUE)
-        ),
-        column(10, 
-               h3("Raw Data"), plotlyOutput("IndexPlot_raw"),
-               h3("Imputed Data"), plotlyOutput("IndexPlot_imputed")
-        )
-    )
-)
-
-# Server for Index Creation
-server_index <- function(input, output, session) {
-  source("data_clean.R")
-  imputed_data <- reactive({
-    data_cpep_mice <- complete(mice(data_cpep, m = 5, method = "pmm", seed = 123))
-    data_gluc_mice <- complete(mice(data_gluc, m = 5, method = "pmm", seed = 123))
-    list(cpep = data_cpep_mice, gluc = data_gluc_mice)
-  })
-
-  data <- reactive({
-    index_data <- function(data) {
-      data %>% group_by(subject) %>% summarise(index = sum(result, na.rm = TRUE))
-    }
-    list(raw = index_data(data_cpep), imputed = index_data(imputed_data()$cpep))
-  })
-
-  output$IndexPlot_raw <- renderPlotly({
-    req(input$showIndex)
-    plot_data <- data()$raw
-    plot_ly(plot_data, x = ~subject, y = ~index, type = 'scatter', mode = 'lines+markers') %>%
-      layout(title = "Raw Data Index")
-  })
-
-  output$IndexPlot_imputed <- renderPlotly({
-    req(input$showIndex)
-    plot_data <- data()$imputed
-    plot_ly(plot_data, x = ~subject, y = ~index, type = 'scatter', mode = 'lines+markers') %>%
-      layout(title = "Imputed Data Index")
-  })
-}
-
-shinyApp(ui = ui_index, server = server_index)
-```
