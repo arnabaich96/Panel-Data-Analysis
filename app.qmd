@@ -1,0 +1,232 @@
+---
+title: "Interactive Biomea Trial Data Analysis"
+author: "Your Name"
+date: "`r Sys.Date()`"
+format: 
+  html:
+    theme: cerulean
+    toc: true
+    toc-title: "Table of Contents"
+    code-fold: true
+editor: source
+runtime: shiny
+self_contained: true
+---
+# Step 2: Generate Summary Plots
+
+## Summary Plots App
+
+```{r}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+library(shiny)
+library(plotly)
+library(dplyr)
+
+# UI for Summary Plots
+ui_summary_plots <- fluidPage(
+    titlePanel("Summary Plots"),
+    fluidRow(
+        column(2,
+               h3("Options"),
+               radioButtons("Measurement", "Measurement:", choices = c("Glucose", "C-peptide"), selected = "C-peptide", inline = TRUE),
+               radioButtons("Treatment", "Visualization:", choices = c("Pooled", "Individual"), selected = "Pooled", inline = TRUE),
+               radioButtons("plotvariable", "Interaction Plot Variable:", choices = c("Visit", "Time"), selected = "Visit", inline = TRUE),
+               checkboxInput("showPlot", "Show Plot", value = TRUE)
+        ),
+        column(10, plotlyOutput("InteractionPlot"))
+    )
+)
+
+# Server for Summary Plots
+server_summary_plots <- function(input, output, session) {
+  source("data_clean.R")
+  imputed_data <- reactive({
+    data_cpep_mice <- complete(mice(data_cpep, m = 5, method = "pmm", seed = 123))
+    data_gluc_mice <- complete(mice(data_gluc, m = 5, method = "pmm", seed = 123))
+    list(cpep = data_cpep_mice, gluc = data_gluc_mice)
+  })
+
+  data <- reactive({
+    if (input$Measurement == "Glucose") {
+      list(raw = data_gluc, imputed = imputed_data()$gluc)
+    } else {
+      list(raw = data_cpep, imputed = imputed_data()$cpep)
+    }
+  })
+
+  output$InteractionPlot <- renderPlotly({
+    req(input$showPlot)
+    plot_data <- data()$raw
+    plot_ly(plot_data, x = ~visit, y = ~result, color = ~time, type = 'scatter', mode = 'lines+markers') %>%
+      layout(title = "Raw Data Interaction Plot")
+  })
+}
+
+shinyApp(ui = ui_summary_plots, server = server_summary_plots)
+```
+# Step 5: Create Index
+Index Creation App
+```{r}
+library(shiny)
+library(dplyr)
+library(gt)
+
+# UI for Summary Tables
+ui_summary_tables <- fluidPage(
+    titlePanel("Summary Tables"),
+    fluidRow(
+        column(2,
+               h3("Options"),
+               radioButtons("Measurement", "Measurement:", choices = c("Glucose", "C-peptide"), selected = "C-peptide", inline = TRUE),
+               radioButtons("Treatment", "Visualization:", choices = c("Pooled", "Individual"), selected = "Pooled", inline = TRUE),
+               checkboxInput("Summary", "Summary", value = FALSE),
+               selectInput("SummaryType", "Summary Type:", choices = c("mean", "sd", "median", "min", "max", "IQR"), selected = "mean"),
+               checkboxInput("showTable", "Show Table", value = TRUE)
+        ),
+        column(10, uiOutput("SummaryTable"))
+    )
+)
+
+# Server for Summary Tables
+server_summary_tables <- function(input, output, session) {
+  source("data_clean.R")
+  imputed_data <- reactive({
+    data_cpep_mice <- complete(mice(data_cpep, m = 5, method = "pmm", seed = 123))
+    data_gluc_mice <- complete(mice(data_gluc, m = 5, method = "pmm", seed = 123))
+    list(cpep = data_cpep_mice, gluc = data_gluc_mice)
+  })
+
+  data <- reactive({
+    if (input$Measurement == "Glucose") {
+      list(raw = data_gluc, imputed = imputed_data()$gluc)
+    } else {
+      list(raw = data_cpep, imputed = imputed_data()$cpep)
+    }
+  })
+
+  output$SummaryTable <- renderUI({
+    req(input$showTable)
+    summary_data <- data()$raw %>%
+      group_by(visit, time) %>%
+      summarise(result = round(mean(result, na.rm = TRUE), 3)) %>%
+      pivot_wider(names_from = visit, values_from = result)
+    gt_table <- gt(summary_data) %>%
+      tab_header(title = "Raw Data Summary") %>%
+      fmt_number(columns = everything(), decimals = 2) %>%
+      cols_align(align = "center", columns = everything())
+    HTML(gt_table %>% as_raw_html())
+  })
+}
+
+shinyApp(ui = ui_summary_tables, server = server_summary_tables)
+```
+# Step 5: Create Index
+Index Creation App
+```{r}
+library(shiny)
+library(plotly)
+library(dplyr)
+
+# UI for AUC Calculation
+ui_auc <- fluidPage(
+    titlePanel("AUC Calculation"),
+    fluidRow(
+        column(2, 
+               h3("Options"),
+               checkboxInput("showAUC", "Calculate AUC", value = TRUE)
+        ),
+        column(10, 
+               h3("Raw Data"), plotlyOutput("AUCPlot_raw"),
+               h3("Imputed Data"), plotlyOutput("AUCPlot_imputed")
+        )
+    )
+)
+
+# Server for AUC Calculation
+server_auc <- function(input, output, session) {
+  source("data_clean.R")
+  imputed_data <- reactive({
+    data_cpep_mice <- complete(mice(data_cpep, m = 5, method = "pmm", seed = 123))
+    data_gluc_mice <- complete(mice(data_gluc, m = 5, method = "pmm", seed = 123))
+    list(cpep = data_cpep_mice, gluc = data_gluc_mice)
+  })
+
+  data <- reactive({
+    auc_data <- function(data) {
+      data %>% group_by(subject, visit) %>% summarise(auc = sum(result, na.rm = TRUE))
+    }
+    list(raw = auc_data(data_cpep), imputed = auc_data(imputed_data()$cpep))
+  })
+
+  output$AUCPlot_raw <- renderPlotly({
+    req(input$showAUC)
+    plot_data <- data()$raw
+    plot_ly(plot_data, x = ~visit, y = ~auc, type = 'scatter', mode = 'lines+markers') %>%
+      layout(title = "Raw Data AUC")
+  })
+
+  output$AUCPlot_imputed <- renderPlotly({
+    req(input$showAUC)
+    plot_data <- data()$imputed
+    plot_ly(plot_data, x = ~visit, y = ~auc, type = 'scatter', mode = 'lines+markers') %>%
+      layout(title = "Imputed Data AUC")
+  })
+}
+
+shinyApp(ui = ui_auc, server = server_auc)
+```   
+# Step 5: Create Index
+Index Creation App
+```{r}
+library(shiny)
+library(plotly)
+library(dplyr)
+
+# UI for Index Creation
+ui_index <- fluidPage(
+    titlePanel("Index Creation"),
+    fluidRow(
+        column(2, 
+               h3("Options"),
+               checkboxInput("showIndex", "Create Index", value = TRUE)
+        ),
+        column(10, 
+               h3("Raw Data"), plotlyOutput("IndexPlot_raw"),
+               h3("Imputed Data"), plotlyOutput("IndexPlot_imputed")
+        )
+    )
+)
+
+# Server for Index Creation
+server_index <- function(input, output, session) {
+  source("data_clean.R")
+  imputed_data <- reactive({
+    data_cpep_mice <- complete(mice(data_cpep, m = 5, method = "pmm", seed = 123))
+    data_gluc_mice <- complete(mice(data_gluc, m = 5, method = "pmm", seed = 123))
+    list(cpep = data_cpep_mice, gluc = data_gluc_mice)
+  })
+
+  data <- reactive({
+    index_data <- function(data) {
+      data %>% group_by(subject) %>% summarise(index = sum(result, na.rm = TRUE))
+    }
+    list(raw = index_data(data_cpep), imputed = index_data(imputed_data()$cpep))
+  })
+
+  output$IndexPlot_raw <- renderPlotly({
+    req(input$showIndex)
+    plot_data <- data()$raw
+    plot_ly(plot_data, x = ~subject, y = ~index, type = 'scatter', mode = 'lines+markers') %>%
+      layout(title = "Raw Data Index")
+  })
+
+  output$IndexPlot_imputed <- renderPlotly({
+    req(input$showIndex)
+    plot_data <- data()$imputed
+    plot_ly(plot_data, x = ~subject, y = ~index, type = 'scatter', mode = 'lines+markers') %>%
+      layout(title = "Imputed Data Index")
+  })
+}
+
+shinyApp(ui = ui_index, server = server_index)
+```
