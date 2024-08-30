@@ -7,14 +7,12 @@ library(tidyverse)
 library(mice)
 
 # UI ----------------------------------------------------------------------
-
-# UI ----------------------------------------------------------------------
 ui <- fluidPage(
-    useShinyjs(),  # Enable shinyjs
+  useShinyjs(),  # Enable shinyjs
 
-    # Include CSS directly in the app
-    tags$head(
-        tags$style(HTML("
+  # Include CSS directly in the app
+  tags$head(
+    tags$style(HTML("
             body {
                 font-family: 'Arial', sans-serif;
                 background-color: #e8f5e9;
@@ -55,140 +53,107 @@ ui <- fluidPage(
                 background-color: #2e7d32;
                 border-color: #2e7d32;
             }
+            #progress-bar {
+                width: 0%;
+                height: 20px;
+                background-color: #4CAF50;
+                text-align: center;
+                line-height: 20px;
+                color: white;
+            }
         "))
-    ),
+  ),
 
-    # Title Panel
-    titlePanel("Biomea Trial 111 and 112 Data"),
+  # Title Panel
+  titlePanel("Biomea Trial 111 and 112 Data"),
 
-    # Imputation Input Parameters
-    fluidRow(
-        column(12,
-               div(class = "well",
-                   h3("Imputation Input Parameters"),
-                   fluidRow(
-                       column(4, numericInput("mValue", "Number of Imputations (m):", value = 5, min = 1)),
-                       column(4, selectInput("method", "Imputation Method:",
-                                             choices = c("pmm", "mean", "norm", "norm.boot", "logreg"),
-                                             selected = "pmm")),
-                       column(4, numericInput("seedValue", "Random Seed:", value = 123))
-                   ),
-                   fluidRow(
-                       column(12, actionButton("runBtn", "Run", class = "btn-primary", style = "display: block; margin: 0 auto;"))
-                   )
+  # Imputation Input Parameters
+  fluidRow(
+    column(12,
+           div(class = "well",
+               h3("Imputation Input Parameters"),
+               fluidRow(
+                 column(4, numericInput("mValue", "Number of Imputations (m):", value = 5, min = 1)),
+                 column(4, selectInput("method", "Imputation Method:",
+                                       choices = c("pmm", "mean", "norm", "norm.boot", "logreg"),
+                                       selected = "pmm")),
+                 column(4, numericInput("seedValue", "Random Seed:", value = 123))
+               ),
+               fluidRow(
+                 column(12, actionButton("runBtn", "Run", class = "btn-primary", style = "display: block; margin: 0 auto;"))
                )
-        )
-    ),
-
-    # Main UI Elements
-    fluidRow(
-        column(4,
-               div(class = "well",
-                   h3("Options"),
-                   radioButtons("Measurement", "Measurement:", choices = c("Glucose", "C-peptide", "Index"), selected = "C-peptide", inline = TRUE),
-                   radioButtons("Treatment", "Visualization:", choices = c("Pooled", "Individual"), selected = "Pooled", inline = TRUE),
-                   conditionalPanel(
-                       condition = "input.Measurement != 'Index'",
-                       radioButtons("plotvariable", "Interaction Plot Variable:", choices = c("Visit", "Time"), selected = "Visit", inline = TRUE)
-                   )
-               )
-        ),
-        column(4,
-               div(class = "well",
-                   h3("Additional Settings"),
-                   checkboxInput("Summary", "Summary", value = FALSE),
-                   checkboxInput("showAUC", "AUC", value = FALSE),
-                   checkboxInput("CI", "Confidence Interval", value = FALSE),
-                   checkboxInput("showPlot", "Show Plot", value = TRUE),
-                   checkboxInput("showTable", "Show Table", value = TRUE)
-               )
-        ),
-        column(4,
-               div(class = "well",
-                   h3("Summary Options"),
-                   conditionalPanel(
-                       condition = "input.Summary == true && input.Treatment != 'Individual'",
-                       selectInput("SummaryType", "Summary:", choices = c("mean", "sd", "median", "min", "max", "IQR"), selected = "mean")
-                   ),
-                   conditionalPanel(
-                       condition = "input.showAUC == true && input.Treatment != 'Individual' && input.Measurement != 'Index'",
-                       selectInput("AUC_SummaryType", "AUC Summary:", choices = c("mean", "sd", "median", "min", "max", "IQR"), selected = "mean")
-                   ),
-                   conditionalPanel(
-                       condition = "input.Treatment == 'Pooled' && input.CI == true",
-                       sliderInput("CI_level", "Confidence Level", min = 0.8, max = 1, value = 0.95, step = 0.025)
-                   )
-               )
-        )
-    ),
-    fluidRow(
-      column(6,
-             div(class = "well",
-                 h3("Raw Data"),
-                 conditionalPanel(
-                   condition = "input.showPlot == true && input.Measurement != 'Index'",
-                   plotlyOutput("InteractionPlot_raw", height = "400px")  # Adjust the height for better fit
-                 ),
-                 conditionalPanel(
-                   condition = "input.showTable == true && input.Measurement != 'Index'",
-                   uiOutput("Summary_raw")
-                 ),
-                 conditionalPanel(
-                   condition = "input.showAUC == true && input.showPlot == true && input.Measurement != 'Index'",
-                   plotlyOutput("AUCPlot_raw", height = "400px")  # Adjust the height for better fit
-                 ),
-                 conditionalPanel(
-                   condition = "input.showAUC == true && input.showTable == true && input.Measurement != 'Index'",
-                   uiOutput("AUCSummary_raw")
-                 ),
-                 conditionalPanel(
-                   condition = "input.showPlot == true && input.Measurement == 'Index'",
-                   plotlyOutput("IndexPlot_raw", height = "400px")  # Adjust the height for better fit
-                 ),
-                 conditionalPanel(
-                   condition = "input.showTable == true && input.Measurement == 'Index'",
-                   uiOutput("IndexSummary_raw")
-                 )
-             )
-      ),
-      column(6,
-             div(class = "well",
-                 h3("Imputed Data"),
-                 conditionalPanel(
-                   condition = "input.showPlot == true && input.Measurement != 'Index'",
-                   plotlyOutput("InteractionPlot_imputed", height = "400px")  # Adjust the height for better fit
-                 ),
-                 conditionalPanel(
-                   condition = "input.showTable == true && input.Measurement != 'Index'",
-                   uiOutput("Summary_imputed")
-                 ),
-                 conditionalPanel(
-                   condition = "input.showAUC == true && input.showPlot == true && input.Measurement != 'Index'",
-                   plotlyOutput("AUCPlot_imputed", height = "400px")  # Adjust the height for better fit
-                 ),
-                 conditionalPanel(
-                   condition = "input.showAUC == true && input.showTable == true && input.Measurement != 'Index'",
-                   uiOutput("AUCSummary_imputed")
-                 ),
-                 conditionalPanel(
-                   condition = "input.showPlot == true && input.Measurement == 'Index'",
-                   plotlyOutput("IndexPlot_imputed", height = "400px")  # Adjust the height for better fit
-                 ),
-                 conditionalPanel(
-                   condition = "input.showTable == true && input.Measurement == 'Index'",
-                   uiOutput("IndexSummary_imputed")
-                 )
-             )
-      )
+           )
     )
+  ),
 
+  # Progress Bar
+  fluidRow(
+    column(12,
+           div(id = "progress-bar", "0%")
+    )
+  ),
 
+  # Main UI Elements
+  fluidRow(
+    column(4,
+           div(class = "well",
+               h3("Options"),
+               radioButtons("Measurement", "Measurement:", choices = c("Glucose", "C-peptide", "Index"), selected = "C-peptide", inline = TRUE),
+               radioButtons("Treatment", "Visualization:", choices = c("Pooled", "Individual"), selected = "Pooled", inline = TRUE),
+               conditionalPanel(
+                 condition = "input.Measurement != 'Index'",
+                 radioButtons("plotvariable", "Interaction Plot Variable:", choices = c("Visit", "Time"), selected = "Visit", inline = TRUE)
+               )
+           )
+    ),
+    column(4,
+           div(class = "well",
+               h3("Additional Settings"),
+               checkboxInput("Summary", "Summary", value = FALSE),
+               checkboxInput("showAUC", "AUC", value = FALSE),
+               checkboxInput("CI", "Confidence Interval", value = FALSE),
+               checkboxInput("showPlot", "Show Plot", value = TRUE),
+               checkboxInput("showTable", "Show Table", value = TRUE)
+           )
+    ),
+    column(4,
+           div(class = "well",
+               h3("Summary Options"),
+               conditionalPanel(
+                 condition = "input.Summary == true && input.Treatment != 'Individual'",
+                 selectInput("SummaryType", "Summary:", choices = c("mean", "sd", "median", "min", "max", "IQR"), selected = "mean")
+               ),
+               conditionalPanel(
+                 condition = "input.showAUC == true && input.Treatment != 'Individual' && input.Measurement != 'Index'",
+                 selectInput("AUC_SummaryType", "AUC Summary:", choices = c("mean", "sd", "median", "min", "max", "IQR"), selected = "mean")
+               ),
+               conditionalPanel(
+                 condition = "input.Treatment == 'Pooled' && input.CI == true",
+                 sliderInput("CI_level", "Confidence Level", min = 0.8, max = 1, value = 0.95, step = 0.025)
+               )
+           )
+    )
+  ),
+
+  # Placeholder for results
+  fluidRow(
+    column(12, h3("Results will display here after computation"))
+  )
 )
 
 
 # Server ------------------------------------------------------------------
 server <- function(input, output, session) {
 
+  observeEvent(input$runBtn, {
+    # Simulate a long process with progressive updates to the progress bar
+    for (i in 1:10) {
+      Sys.sleep(0.5)  # Simulating processing time
+      # Update progress bar
+      progress <- i * 10
+      shinyjs::runjs(sprintf("$('#progress-bar').css('width', '%s%%').text('%s%%');", progress, progress))
+    }
+  })
   # Source the data_clean.R script to generate data_cpep and data_gluc
   source("data_clean.R")
 

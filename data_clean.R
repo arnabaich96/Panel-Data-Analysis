@@ -286,3 +286,41 @@ data_gluc$time <- factor(data_gluc$time, levels = c("0hr", "0.5hr", "1hr", "1.5h
 data_gluc$visit <- factor(data_gluc$visit, levels = c("0", "2", "4", "8", "12", "16", "20", "26"))
 # remove everything from the environment except  two data frames
 rm(list=setdiff(ls(), c("data_cpep", "data_gluc")))
+
+
+# Helper functions --------------------------------------------------------
+
+# Function to calculate AUC using the trapezoidal rule
+trapezoidal_auc <- function(time, value) {
+  n <- length(time)
+  auc <- sum(diff(time) * (value[-1] + value[-n]) / 2)
+  return(abs(auc))
+}
+
+# Function to convert "hr" strings to minutes
+convert_to_minutes <- function(time_str) {
+  hours <- as.numeric(sub("hr", "", time_str))
+  return(hours * 60)
+}
+
+# Function to calculate the Index
+calculate_index <- function(data_cpep, data_gluc) {
+  data_cpep$time <- sapply(data_cpep$time, convert_to_minutes)
+  data_gluc$time <- sapply(data_gluc$time, convert_to_minutes)
+
+  auc_cpep <- data_cpep %>%
+    group_by(subject, visit) %>%
+    summarise(auc_cpep = trapezoidal_auc(as.numeric(time), result)) %>%
+    ungroup()
+
+  auc_gluc <- data_gluc %>%
+    group_by(subject, visit) %>%
+    summarise(auc_gluc = trapezoidal_auc(as.numeric(time), result)) %>%
+    ungroup()
+
+  index_data <- auc_cpep %>%
+    inner_join(auc_gluc, by = c("subject", "visit")) %>%
+    mutate(index = (auc_cpep / auc_gluc) * 100)
+
+  return(index_data)
+}
