@@ -1,43 +1,46 @@
----
-title: "Interactive and Customizable Features of the Shiny App"
-author: "Your Name"
-date: "Date"
-output: html_document
----
+# User Guide and Content Description
 
 ## Introduction
 
-This document provides an overview of the interactive and customizable features of our Shiny application, designed to facilitate dynamic analysis of clinical trial data. It highlights how users can interact with and customize the application to suit their analysis needs.
+This document provides a comprehensive user guide and content description for the R scripts: `app.R` and `data_clean.R`. These scripts are essential components of the project and are responsible for data cleaning and application execution, respectively.
 
-## Application Overview
+## Description of `app.R`
 
-The application is designed to be highly interactive, with several components that allow users to dynamically manipulate data visualizations and statistical outputs. Here’s a breakdown of its key features:
+The `app.R` script serves as the main entry point for the application. This script is responsible for [briefly describe what the script does, e.g., launching a Shiny app, performing analysis, etc.].
 
-### User Interface Components
+### Key Components
 
-#### Measurement Selection
-Users can select from various measurements like Glucose, C-peptide, or an Index for detailed analysis. This choice affects the types of visualizations and statistical summaries presented.
+- **UI Definition**: The script defines the user interface (UI) of the application using the `fluidPage()` function, which includes [describe the elements like inputs, outputs, layout, etc.].
+  
+- **Server Logic**: The server function contains the core logic of the application, which includes [mention any data processing, plotting, reactive expressions, etc.].
 
-#### Visualization Options
-The application offers options to view data in pooled or individual formats. This feature helps users compare different datasets or focus on specific data points within the same dataset.
+- **Application Launch**: Finally, the `shinyApp(ui = ui, server = server)` function is called to launch the application.
 
-### Dynamic Outputs
+### Dependencies
 
-#### Plots and Tables
-Depending on the user’s choices of measurements and visualization types, the application dynamically generates relevant plots and tables. This ensures that the outputs are tailored to the user's current analytical focus.
+The script depends on several R packages such as `shiny`, `dplyr`, etc. Ensure these packages are installed before running the script.
 
-### Conditional Panels
-Certain features and input options are displayed conditionally, based on previous selections. This approach helps maintain a clean and relevant user interface, preventing clutter and enhancing usability.
+## Description of `data_clean.R`
 
-## Customization Options
+The `data_clean.R` script is responsible for preparing and cleaning the dataset. It performs tasks such as [describe the tasks, e.g., data transformation, filtering, handling missing values, etc.].
 
-### Theme Customization
-Users have the ability to customize the visual theme of the application. Options might include default, dark mode, or light mode, each providing a different visual experience that can be chosen according to user preference.
+### Key Functions
 
-### Data Filtering
-Interactive sliders and selection boxes allow users to filter the dataset based on specific parameters, such as time frames or specific values. This feature is crucial for drilling down into more granular data insights.
+- **Data Loading**: The script loads the data using `read.csv()` or similar functions.
+  
+- **Data Cleaning**: The cleaning process involves [describe key cleaning steps such as removing duplicates, filtering rows, etc.].
 
-## Conclusion
+- **Output**: The cleaned dataset is saved or passed to the next step in the pipeline.
 
-The described features demonstrate the application's flexibility and user-focused design, providing a powerful tool for data analysis with extensive customization options. The application is continually refined to enhance its functionality and ease of use based on user feedback.
+### Dependencies
 
+This script requires packages such as `tidyverse`, `data.table`, etc. Ensure these packages are installed before running the script.
+
+## Usage Instructions
+
+### Prerequisites
+
+Before running the scripts, ensure that the following packages are installed:
+
+```r
+install.packages(c("shiny", "dplyr", "tidyverse"))
