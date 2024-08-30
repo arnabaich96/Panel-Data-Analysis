@@ -236,6 +236,9 @@ data_cpep$visit =  case_when(
   data_cpep$visit == "Week 26" ~ "26",
   TRUE ~ data_cpep$visit
 )
+# Ensure that time and visit are factors with levels set to chronological order
+data_cpep$time <- factor(data_cpep$time, levels = c("0hr", "0.5hr", "1hr", "1.5hr", "2hr"))
+data_cpep$visit <- factor(data_cpep$visit, levels = c("0", "2", "4", "8", "12", "16", "20", "26"))
 
 ## ----include=FALSE-------------------------------------------------------------------------------------------
 data_gluc = data.frame(
@@ -278,5 +281,8 @@ data_gluc$visit =  case_when(
   data_gluc$visit == "Week 26" ~ "26",
   TRUE ~ data_gluc$visit
 )
+# Ensure that time and visit are factors with levels set to chronological order
+data_gluc$time <- factor(data_gluc$time, levels = c("0hr", "0.5hr", "1hr", "1.5hr", "2hr"))
+data_gluc$visit <- factor(data_gluc$visit, levels = c("0", "2", "4", "8", "12", "16", "20", "26"))
 # remove everything from the environment except  two data frames
 rm(list=setdiff(ls(), c("data_cpep", "data_gluc")))

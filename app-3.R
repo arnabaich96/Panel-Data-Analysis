@@ -64,7 +64,7 @@ ui <- fluidPage(
   # Top row with imputation inputs
   fluidRow(
     column(3,
-           numericInput("mValue", "Number of Imputations (m):", value = 50, min = 1)
+           numericInput("mValue", "Number of Imputations (m):", value = 5, min = 1)
     ),
     column(3,
            selectInput("method", "Imputation Method:",
@@ -448,7 +448,7 @@ output$Summary_raw <- renderUI({
       filter(subject == input$selectedID) %>%
       group_by(visit, time) %>%
       summarise(result = round(result, 3)) %>%
-      pivot_wider(names_from = {{input$plotvariable}}, values_from = result)  # Dynamic orientation
+      pivot_wider(names_from = visit, values_from = result)  # Dynamic orientation
   }
 
   title_text <- if (input$Treatment == "Pooled") {
@@ -490,7 +490,7 @@ output$Summary_imputed <- renderUI({
       filter(subject == input$selectedID) %>%
       group_by(visit, time) %>%
       summarise(result = round(result, 3)) %>%
-      pivot_wider(names_from = {{input$plotvariable}}, values_from = result)  # Dynamic orientation
+      pivot_wider(names_from = visit, values_from = result)  # Dynamic orientation
   }
 
   title_text <- if (input$Treatment == "Pooled") {
@@ -520,7 +520,7 @@ output$Summary_imputed <- renderUI({
 
 
   # AUC Plot for raw data (Left Column) using plotly with conditional CI
-  output$AUCPlot_raw <- renderPlotly({
+output$AUCPlot_raw <- renderPlotly({
     req(input$runBtn)
     data <- data()$raw
     data$time <- sapply(data$time, convert_to_minutes)
@@ -639,6 +639,16 @@ output$Summary_imputed <- renderUI({
           yaxis = list(title = "Index"),
           title = paste("Index Summary:", input$SummaryType)
         )
+      if (input$CI) {
+        plot <- plot %>%
+          add_ribbons(
+            ymin = ~index_lower, ymax = ~index_upper,
+            line = list(color = 'transparent'),
+            fillcolor = ~paste0("rgba(", col2rgb("red")[1], ",", col2rgb("red")[2], ",", col2rgb("red")[3], ",0.2)"),
+            hoverinfo = "none",
+            showlegend = FALSE
+          )
+      }
     } else if (input$Treatment == "Individual") {
       plot_data <- plot_data %>% filter(subject == input$selectedID)
 
@@ -675,9 +685,19 @@ output$Summary_imputed <- renderUI({
           yaxis = list(title = "Index"),
           title = paste("Index Summary :", input$SummaryType)
         )
+
+      if (input$CI) {
+        plot <- plot %>%
+          add_ribbons(
+            ymin = ~index_lower, ymax = ~index_upper,
+            line = list(color = 'transparent'),
+            fillcolor = ~paste0("rgba(", col2rgb("red")[1], ",", col2rgb("red")[2], ",", col2rgb("red")[3], ",0.2)"),
+            hoverinfo = "none",
+            showlegend = FALSE
+          )
+      }
     } else if (input$Treatment == "Individual") {
       plot_data <- plot_data %>% filter(subject == input$selectedID)
-
       plot <- plot_ly(plot_data %>% filter(!is.na(index)), x = ~visit, y = ~index, type = 'scatter', mode = 'lines+markers') %>%
         layout(
           xaxis = list(title = "Visit"),
