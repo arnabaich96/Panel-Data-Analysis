@@ -3043,10 +3043,7 @@ vertical-align: -.125em;
     <h2 id="toc-title">Table of Contents</h2>
    
   <ul>
-  <li><a href="#introduction-to-missing-value-analysis-in-panel-data" id="toc-introduction-to-missing-value-analysis-in-panel-data" class="nav-link active" data-scroll-target="#introduction-to-missing-value-analysis-in-panel-data">Introduction to Missing Value Analysis in Panel Data</a>
-  <ul class="collapse">
-  <li><a href="#challenges-in-panel-data" id="toc-challenges-in-panel-data" class="nav-link" data-scroll-target="#challenges-in-panel-data">Challenges in Panel Data</a></li>
-  </ul></li>
+  <li><a href="#challenges-in-panel-data" id="toc-challenges-in-panel-data" class="nav-link active" data-scroll-target="#challenges-in-panel-data">Challenges in Panel Data</a></li>
   <li><a href="#mice-in-panel-data-context" id="toc-mice-in-panel-data-context" class="nav-link" data-scroll-target="#mice-in-panel-data-context"><code>mice</code> in Panel Data Context</a>
   <ul class="collapse">
   <li><a href="#advantages-for-panel-data" id="toc-advantages-for-panel-data" class="nav-link" data-scroll-target="#advantages-for-panel-data">Advantages for Panel Data</a></li>
@@ -3054,17 +3051,45 @@ vertical-align: -.125em;
   <li><a href="#using-the-mice-package" id="toc-using-the-mice-package" class="nav-link" data-scroll-target="#using-the-mice-package">Using the <code>mice</code> Package</a>
   <ul class="collapse">
   <li><a href="#installation-and-setup" id="toc-installation-and-setup" class="nav-link" data-scroll-target="#installation-and-setup">Installation and Setup</a></li>
-  <li><a href="#running-the-imputation" id="toc-running-the-imputation" class="nav-link" data-scroll-target="#running-the-imputation">Running the Imputation</a></li>
   </ul></li>
-  <li><a href="#step-2-generate-summary-plots" id="toc-step-2-generate-summary-plots" class="nav-link" data-scroll-target="#step-2-generate-summary-plots">Step 2: Generate Summary Plots</a>
+  <li><a href="#data-imputation-application" id="toc-data-imputation-application" class="nav-link" data-scroll-target="#data-imputation-application">Data Imputation Application</a>
   <ul class="collapse">
-  <li><a href="#summary-plots-app" id="toc-summary-plots-app" class="nav-link" data-scroll-target="#summary-plots-app">Summary Plots App</a></li>
-  </ul></li>
-  <li><a href="#step-3-generate-auc" id="toc-step-3-generate-auc" class="nav-link" data-scroll-target="#step-3-generate-auc">Step 3: Generate AUC</a>
+  <li><a href="#introduction" id="toc-introduction" class="nav-link" data-scroll-target="#introduction">Introduction</a></li>
+  <li><a href="#app-features" id="toc-app-features" class="nav-link" data-scroll-target="#app-features">App Features</a>
   <ul class="collapse">
-  <li><a href="#auc-calculation" id="toc-auc-calculation" class="nav-link" data-scroll-target="#auc-calculation">AUC calculation</a></li>
+  <li><a href="#running-the-app" id="toc-running-the-app" class="nav-link" data-scroll-target="#running-the-app">Running the App</a></li>
+  <li><a href="#imputation-parameters" id="toc-imputation-parameters" class="nav-link" data-scroll-target="#imputation-parameters">Imputation Parameters</a></li>
   </ul></li>
-  <li><a href="#step-4-generate-index-calculation" id="toc-step-4-generate-index-calculation" class="nav-link" data-scroll-target="#step-4-generate-index-calculation">Step 4: Generate Index Calculation</a></li>
+  </ul></li>
+  <li><a href="#summary-application" id="toc-summary-application" class="nav-link" data-scroll-target="#summary-application">Summary Application</a>
+  <ul class="collapse">
+  <li><a href="#customizing-the-visualization" id="toc-customizing-the-visualization" class="nav-link" data-scroll-target="#customizing-the-visualization">Customizing the Visualization</a></li>
+  <li><a href="#additional-settings" id="toc-additional-settings" class="nav-link" data-scroll-target="#additional-settings">Additional Settings</a></li>
+  <li><a href="#example-usage" id="toc-example-usage" class="nav-link" data-scroll-target="#example-usage">Example Usage</a></li>
+  </ul></li>
+  <li><a href="#auc-application" id="toc-auc-application" class="nav-link" data-scroll-target="#auc-application">AUC Application</a>
+  <ul class="collapse">
+  <li><a href="#introduction-1" id="toc-introduction-1" class="nav-link" data-scroll-target="#introduction-1">Introduction</a></li>
+  <li><a href="#app-features-1" id="toc-app-features-1" class="nav-link" data-scroll-target="#app-features-1">App Features</a>
+  <ul class="collapse">
+  <li><a href="#running-the-app-1" id="toc-running-the-app-1" class="nav-link" data-scroll-target="#running-the-app-1">Running the App</a></li>
+  <li><a href="#data-selection" id="toc-data-selection" class="nav-link" data-scroll-target="#data-selection">Data Selection</a></li>
+  <li><a href="#additional-settings-1" id="toc-additional-settings-1" class="nav-link" data-scroll-target="#additional-settings-1">Additional Settings</a></li>
+  <li><a href="#customizing-the-summary" id="toc-customizing-the-summary" class="nav-link" data-scroll-target="#customizing-the-summary">Customizing the Summary</a></li>
+  <li><a href="#interactive-elements" id="toc-interactive-elements" class="nav-link" data-scroll-target="#interactive-elements">Interactive Elements</a></li>
+  <li><a href="#example-usage-1" id="toc-example-usage-1" class="nav-link" data-scroll-target="#example-usage-1">Example Usage</a></li>
+  </ul></li>
+  <li><a href="#introduction-2" id="toc-introduction-2" class="nav-link" data-scroll-target="#introduction-2">Introduction</a></li>
+  <li><a href="#app-features-2" id="toc-app-features-2" class="nav-link" data-scroll-target="#app-features-2">App Features</a>
+  <ul class="collapse">
+  <li><a href="#visualization-mode" id="toc-visualization-mode" class="nav-link" data-scroll-target="#visualization-mode">1. Visualization Mode</a></li>
+  <li><a href="#summary-statistics-pooled-mode-only" id="toc-summary-statistics-pooled-mode-only" class="nav-link" data-scroll-target="#summary-statistics-pooled-mode-only">2. Summary Statistics (Pooled Mode Only)</a></li>
+  <li><a href="#confidence-interval-ci-pooled-mode-only" id="toc-confidence-interval-ci-pooled-mode-only" class="nav-link" data-scroll-target="#confidence-interval-ci-pooled-mode-only">3. Confidence Interval (CI) (Pooled Mode Only)</a></li>
+  <li><a href="#individual-selection-individual-mode-only" id="toc-individual-selection-individual-mode-only" class="nav-link" data-scroll-target="#individual-selection-individual-mode-only">4. Individual Selection (Individual Mode Only)</a></li>
+  </ul></li>
+  <li><a href="#running-the-app-2" id="toc-running-the-app-2" class="nav-link" data-scroll-target="#running-the-app-2">Running the App</a></li>
+  </ul></li>
+  <li><a href="#index-application" id="toc-index-application" class="nav-link" data-scroll-target="#index-application">Index Application</a></li>
   </ul>
 </nav>
 </div>
@@ -3101,8 +3126,6 @@ vertical-align: -.125em;
 </header>
 
 
-<section id="introduction-to-missing-value-analysis-in-panel-data" class="level2">
-<h2 class="anchored" data-anchor-id="introduction-to-missing-value-analysis-in-panel-data">Introduction to Missing Value Analysis in Panel Data</h2>
 <p>Missing value analysis is crucial in ensuring the accuracy and validity of data analyses, especially in panel data which involves observations over time for the same subjects or entities. This type of data is particularly prone to missing entries due to various factors like attrition or non-response, which can introduce bias and affect the conclusions if not properly managed.</p>
 <section id="challenges-in-panel-data" class="level3">
 <h3 class="anchored" data-anchor-id="challenges-in-panel-data">Challenges in Panel Data</h3>
@@ -3111,7 +3134,6 @@ vertical-align: -.125em;
 <li><strong>Time Dependence</strong>: Missing values may depend on the time sequence or previous values, complicating their imputation.</li>
 <li><strong>Inter-Subject Variability</strong>: Variability across subjects can lead to distinct patterns of missingness, requiring nuanced imputation strategies.</li>
 </ul>
-</section>
 </section>
 <section id="mice-in-panel-data-context" class="level2">
 <h2 class="anchored" data-anchor-id="mice-in-panel-data-context"><code>mice</code> in Panel Data Context</h2>
@@ -3132,47 +3154,200 @@ vertical-align: -.125em;
 <h3 class="anchored" data-anchor-id="installation-and-setup">Installation and Setup</h3>
 <p>The <code>mice</code> package can be installed and loaded into an R environment using standard package management commands. It is essential to have the package ready before starting the imputation process.</p>
 </section>
-<section id="running-the-imputation" class="level3">
-<h3 class="anchored" data-anchor-id="running-the-imputation">Running the Imputation</h3>
+</section>
+<section id="data-imputation-application" class="level1">
+<h1>Data Imputation Application</h1>
+<section id="introduction" class="level2">
+<h2 class="anchored" data-anchor-id="introduction">Introduction</h2>
+<p>This Shiny app provides tools for data imputation and visualization for clinical trial data. Users can impute missing data for C-peptide and Glucose measurements, visualize the imputed and raw data, and explore summary statistics interactively.</p>
+</section>
+<section id="app-features" class="level2">
+<h2 class="anchored" data-anchor-id="app-features">App Features</h2>
+<p>The app is divided into several key components:</p>
 <ol type="1">
-<li><strong>Define the Imputation Model</strong>: Set up the imputation method for each variable in your dataset. <code>mice</code> can automatically select suitable methods or allow for manual specification based on detailed knowledge of the data.</li>
-<li><strong>Execute Imputation</strong>: Use the <code>mice()</code> function, specifying the number of imputations to generate. This function applies a series of predictive models, each conditioning on other variables, to iteratively fill in missing values across multiple cycles.</li>
+<li><strong>Data Imputation</strong>: Users can input parameters for multiple imputation and view the progress and status of imputing C-peptide and Glucose data.</li>
+<li><strong>Data Visualization</strong>: Users can explore both raw and imputed data through interactive plots and summary tables.</li>
+</ol>
+<section id="running-the-app" class="level3">
+<h3 class="anchored" data-anchor-id="running-the-app">Running the App</h3>
+<p>The app is structured to work within an R environment. To run the app:</p>
+<ol type="1">
+<li>Ensure all required packages are installed and loaded (e.g., <code>shiny</code>, <code>shinyjs</code>, <code>plotly</code>, <code>dplyr</code>, <code>gt</code>, <code>mice</code>).</li>
+<li>Place the app code in an R script or within an R Markdown document with runtime <code>shiny</code>.</li>
+<li>Execute the app by running the R script or knitting the R Markdown document.</li>
+</ol>
+</section>
+<section id="imputation-parameters" class="level3">
+<h3 class="anchored" data-anchor-id="imputation-parameters">Imputation Parameters</h3>
+<p>In the <strong>Data Imputation</strong> section, users can specify:</p>
+<ul>
+<li><strong>Number of Imputations (m)</strong>: Set the number of multiple imputations to be generated (default is 5).</li>
+<li><strong>Imputation Method</strong>: Choose from methods like Predictive Mean Matching (<code>pmm</code>), Mean Imputation (<code>mean</code>), Normal Imputation (<code>norm</code>), Bootstrapped Normal Imputation (<code>norm.boot</code>), and Logistic Regression (<code>logreg</code>).</li>
+<li><strong>Random Seed</strong>: Set a random seed for reproducibility.</li>
+</ul>
+<div class="cell">
+<div class="cell-output-display">
+<p><iframe data-deferred-src="appa4f4ef867109dba80197bdd5529d2c6d/?w=&amp;__subapp__=1" width="100%" height="400" class="shiny-frame shiny-frame-deferred"></iframe></p>
+</div>
+</div>
+<p><strong>import data sets into the environment</strong></p>
+</section>
+</section>
+</section>
+<section id="summary-application" class="level1">
+<h1>Summary Application</h1>
+<section id="customizing-the-visualization" class="level2">
+<h2 class="anchored" data-anchor-id="customizing-the-visualization">Customizing the Visualization</h2>
+<p>The <strong>Data Visualization</strong> section allows customization of how the data is presented:</p>
+<ul>
+<li><strong>Measurement</strong>: Select between <code>Glucose</code> and <code>C-peptide</code> data.</li>
+<li><strong>Visualization Type</strong>: Choose between <code>Pooled</code> data (aggregated across all subjects) or <code>Individual</code> data (for a specific subject).</li>
+<li><strong>Interaction Plot Variable</strong>: Select whether to plot data against <code>Visit</code> (time points) or <code>Time</code> (in minutes). -<strong>Plot Interaction</strong>: Users can interact with the plots to explore different variables and statistical summaries.</li>
+</ul>
+</section>
+<section id="additional-settings" class="level2">
+<h2 class="anchored" data-anchor-id="additional-settings">Additional Settings</h2>
+<ul>
+<li><strong>Summary</strong>: When <code>Pooled</code> is selected, users can add a summary statistic (e.g., mean, median) to the plots.</li>
+<li><strong>Confidence Interval</strong>: Users can display confidence intervals around the summary statistic.</li>
+<li><strong>Summary Type</strong>: Choose the type of summary statistic to display (e.g., mean, sd, median).</li>
+<li><strong>Confidence Level</strong>: Adjust the confidence level for intervals (default is 95%).</li>
+</ul>
+</section>
+<section id="example-usage" class="level2">
+<h2 class="anchored" data-anchor-id="example-usage">Example Usage</h2>
+<p>Here’s how a typical workflow might look:</p>
+<ol type="1">
+<li><strong>Set Imputation Parameters</strong>: Adjust the number of imputations, method, and random seed.</li>
+<li><strong>Run Imputation</strong>: Click the “Run Imputation” button to start the process. The progress bars will update to show completion status.</li>
+<li><strong>Visualize Data</strong>: Explore the raw and imputed data using the interactive plots. Switch between pooled and individual data, adjust summary settings, and view confidence intervals.</li>
 </ol>
 <div class="cell">
 <div class="cell-output-display">
-<p><iframe data-deferred-src="app74766321ee0709e41a2978855f024c07/?w=&amp;__subapp__=1" width="100%" height="400" class="shiny-frame shiny-frame-deferred"></iframe></p>
+<p><iframe data-deferred-src="appb2f1d95f9a6cd1b7cc76efcd6f4a163f/?w=&amp;__subapp__=1" width="100%" height="400" class="shiny-frame shiny-frame-deferred"></iframe></p>
 </div>
 </div>
-<p><strong>import data sets intp the environment</strong></p>
 </section>
 </section>
-<section id="step-2-generate-summary-plots" class="level1">
-<h1>Step 2: Generate Summary Plots</h1>
-<section id="summary-plots-app" class="level2">
-<h2 class="anchored" data-anchor-id="summary-plots-app">Summary Plots App</h2>
+<section id="auc-application" class="level1">
+<h1>AUC Application</h1>
+<section id="introduction-1" class="level2">
+<h2 class="anchored" data-anchor-id="introduction-1">Introduction</h2>
+<p>This Shiny app provides a platform for calculating the Area Under the Curve (AUC) for glucose and C-peptide measurements from clinical trial data. The app also allows for visualizing the calculated AUC, both for raw and imputed data.</p>
+</section>
+<section id="app-features-1" class="level2">
+<h2 class="anchored" data-anchor-id="app-features-1">App Features</h2>
+<p>The app consists of several interactive components:</p>
+<ol type="1">
+<li><strong>Data Selection</strong>: Users can select the type of measurement (Glucose or C-peptide) and specify the visualization type (Pooled or Individual).</li>
+<li><strong>AUC Calculation</strong>: The app calculates the AUC using the trapezoidal rule for both raw and imputed data.</li>
+<li><strong>Visualization and Summary</strong>: The app offers customizable options to visualize the AUC results and display summary statistics.</li>
+</ol>
+<section id="running-the-app-1" class="level3">
+<h3 class="anchored" data-anchor-id="running-the-app-1">Running the App</h3>
+<p>To run the app:</p>
+<ol type="1">
+<li>Ensure all required packages are installed (e.g., <code>shiny</code>, <code>shinyjs</code>, <code>plotly</code>, <code>dplyr</code>, <code>gt</code>).</li>
+<li>Place the app code in an R script or within an R Markdown document with runtime <code>shiny</code>.</li>
+<li>Execute the app by running the R script or knitting the R Markdown document.</li>
+</ol>
+</section>
+<section id="data-selection" class="level3">
+<h3 class="anchored" data-anchor-id="data-selection">Data Selection</h3>
+<p>In the <strong>Options</strong> section, users can choose between:</p>
+<ul>
+<li><strong>Measurement</strong>: Select either <code>Glucose</code> or <code>C-peptide</code> data.</li>
+<li><strong>Visualization</strong>: Choose between <code>Pooled</code> (aggregated data) or <code>Individual</code> (data for a specific subject).</li>
+</ul>
+</section>
+<section id="additional-settings-1" class="level3">
+<h3 class="anchored" data-anchor-id="additional-settings-1">Additional Settings</h3>
+<p>In the <strong>Additional Settings</strong> section:</p>
+<ul>
+<li><strong>Summary</strong>: When <code>Pooled</code> is selected, users can enable the summary checkbox to add summary statistics to the plots.</li>
+<li><strong>Confidence Interval</strong>: Users can enable confidence intervals for the plotted summary statistics.</li>
+</ul>
+</section>
+<section id="customizing-the-summary" class="level3">
+<h3 class="anchored" data-anchor-id="customizing-the-summary">Customizing the Summary</h3>
+<p>In the <strong>Summary Options</strong> section, users can:</p>
+<ul>
+<li><strong>Summary Type</strong>: Choose the type of summary statistic to display (e.g., mean, sd, median, min, max, IQR).</li>
+<li><strong>Confidence Level</strong>: Adjust the confidence level for intervals (default is 95%).</li>
+<li><strong>Select Individual ID</strong>: When <code>Individual</code> is selected, users can choose the specific subject ID for visualization.</li>
+</ul>
+</section>
+<section id="interactive-elements" class="level3">
+<h3 class="anchored" data-anchor-id="interactive-elements">Interactive Elements</h3>
+<ul>
+<li><strong>Run Button</strong>: After setting all parameters, click the “Run” button to calculate the AUC and display the plots and summaries.</li>
+<li><strong>Plots and Tables</strong>: The app will show the AUC plots and summary tables for both raw and imputed data after the “Run” button is clicked.</li>
+</ul>
+</section>
+<section id="example-usage-1" class="level3">
+<h3 class="anchored" data-anchor-id="example-usage-1">Example Usage</h3>
+<ol type="1">
+<li><strong>Select Data and Visualization</strong>: Choose <code>Glucose</code> or <code>C-peptide</code> and whether to view <code>Pooled</code> or <code>Individual</code> data.</li>
+<li><strong>Adjust Settings</strong>: Toggle the summary and confidence interval options as needed.</li>
+<li><strong>Run AUC Calculation</strong>: Click the “Run” button to perform the AUC calculation and display the results.</li>
+<li><strong>Explore Results</strong>: View and interact with the AUC plots and summary tables.</li>
+</ol>
 <div class="cell">
 <div class="cell-output-display">
-<p><iframe data-deferred-src="app6c5d66c4ead858653c27d9f4522113bd/?w=&amp;__subapp__=1" width="100%" height="400" class="shiny-frame shiny-frame-deferred"></iframe></p>
+<p><iframe data-deferred-src="app8a8b62de70f1a84ac47253a496340131/?w=&amp;__subapp__=1" width="100%" height="400" class="shiny-frame shiny-frame-deferred"></iframe></p>
 </div>
 </div>
 </section>
 </section>
-<section id="step-3-generate-auc" class="level1">
-<h1>Step 3: Generate AUC</h1>
-<section id="auc-calculation" class="level2">
-<h2 class="anchored" data-anchor-id="auc-calculation">AUC calculation</h2>
+<section id="introduction-2" class="level2">
+<h2 class="anchored" data-anchor-id="introduction-2">Introduction</h2>
+<p>This guide explains how to use the Shiny app for calculating and visualizing the Index for Glucose and C-peptide measurements. The app provides two modes of visualization, summary statistics, and confidence intervals, allowing users to explore the raw and imputed data interactively.</p>
+</section>
+<section id="app-features-2" class="level2">
+<h2 class="anchored" data-anchor-id="app-features-2">App Features</h2>
+<section id="visualization-mode" class="level3">
+<h3 class="anchored" data-anchor-id="visualization-mode">1. Visualization Mode</h3>
+<p>The app offers two modes of data visualization:</p>
+<ul>
+<li><strong>Pooled Mode</strong>: Displays aggregate data for all subjects. This mode enables the calculation of summary statistics and confidence intervals.</li>
+<li><strong>Individual Mode</strong>: Displays data for a selected individual subject, allowing the user to explore individual trends in the data.</li>
+</ul>
+</section>
+<section id="summary-statistics-pooled-mode-only" class="level3">
+<h3 class="anchored" data-anchor-id="summary-statistics-pooled-mode-only">2. Summary Statistics (Pooled Mode Only)</h3>
+<p>In Pooled Mode, you can enable the calculation of summary statistics using the following options:</p>
+<ul>
+<li><strong>Summary Checkbox</strong>: When enabled, the app displays a summary of the data based on the selected summary type.</li>
+<li><strong>Summary Type</strong>: Choose from options such as mean, standard deviation (sd), median, minimum (min), maximum (max), and interquartile range (IQR).</li>
+</ul>
+</section>
+<section id="confidence-interval-ci-pooled-mode-only" class="level3">
+<h3 class="anchored" data-anchor-id="confidence-interval-ci-pooled-mode-only">3. Confidence Interval (CI) (Pooled Mode Only)</h3>
+<ul>
+<li><strong>CI Checkbox</strong>: When enabled, the app displays the confidence interval for the index.</li>
+<li><strong>Confidence Level</strong>: You can adjust the confidence level (from 80% to 100%) using the provided slider.</li>
+</ul>
+</section>
+<section id="individual-selection-individual-mode-only" class="level3">
+<h3 class="anchored" data-anchor-id="individual-selection-individual-mode-only">4. Individual Selection (Individual Mode Only)</h3>
+<p>In Individual Mode, the app allows you to select a specific subject using a dropdown menu. This feature enables you to visualize the index for individual subjects across different visits.</p>
+</section>
+</section>
+<section id="running-the-app-2" class="level2">
+<h2 class="anchored" data-anchor-id="running-the-app-2">Running the App</h2>
+<p>To run the app:</p>
+<ol type="1">
+<li>Click the “Run” button to display the selected visualizations and summary statistics.</li>
+<li>The app will generate two plots: one for the raw data and one for the imputed data. You can toggle between different visualization modes (Pooled or Individual) and customize the output by enabling or disabling the Summary and Confidence Interval options.</li>
+</ol>
+<p>The app will also generate a detailed summary table for both the raw and imputed data. These tables show the index values for each visit and provide an overview of the calculated statistics.</p>
+</section>
+</section>
+<section id="index-application" class="level1">
+<h1>Index Application</h1>
 <div class="cell">
 <div class="cell-output-display">
-<p><iframe data-deferred-src="app3cd6e54d5b975769368eb5370bb974a3/?w=&amp;__subapp__=1" width="100%" height="400" class="shiny-frame shiny-frame-deferred"></iframe></p>
-</div>
-</div>
-</section>
-</section>
-<section id="step-4-generate-index-calculation" class="level1">
-<h1>Step 4: Generate Index Calculation</h1>
-<div class="cell">
-<div class="cell-output-display">
-<p><iframe data-deferred-src="app03447a337d05448795c5f3cbe2909eba/?w=&amp;__subapp__=1" width="100%" height="400" class="shiny-frame shiny-frame-deferred"></iframe></p>
+<p><iframe data-deferred-src="app31785a1564bc7a16bbe0b33f03bdeab5/?w=&amp;__subapp__=1" width="100%" height="400" class="shiny-frame shiny-frame-deferred"></iframe></p>
 </div>
 </div>
 </section>

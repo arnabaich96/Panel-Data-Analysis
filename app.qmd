@@ -1,8 +1,8 @@
 ---
-title: "Interactive Trial Data Analysis"
-author: "Arnab Aich"
-date: "`r Sys.Date()`"
-format:
+title: "<div style='text-align:center ;font-size:40px;'><u>**Interactive Trial Data Analysis**</u></span>"
+author: "<div style= 'text-align:center ; font-size:34px;'>Arnab Aich</span>"
+date: "<div style= 'text-align:center ;font-size:24px;'>`r format(Sys.Date(), '%b-%y')` </span>"
+format: 
   html:
     embed-resources: true
     theme: cerulean
@@ -23,6 +23,13 @@ output:
       size: medium
       theme: dark
       scroll: true
+header-includes:
+  - |
+    <style>
+    h3 {
+      font-size: 20px;
+    }
+    </style>
 navbar:
   title: "Biomea Trial Data Analysis"
   left:
@@ -37,8 +44,6 @@ navbar:
 editor: source
 runtime: shiny
 ---
-
-
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
 library(shiny)
@@ -51,8 +56,6 @@ library(shinyWidgets)
 library(shinycssloaders)
 
 ```
-## Introduction to Missing Value Analysis in Panel Data
-
 Missing value analysis is crucial in ensuring the accuracy and validity of data analyses, especially in panel data which involves observations over time for the same subjects or entities. This type of data is particularly prone to missing entries due to various factors like attrition or non-response, which can introduce bias and affect the conclusions if not properly managed.
 
 ### Challenges in Panel Data
@@ -62,7 +65,7 @@ Panel data's unique challenges stem from:
 - **Time Dependence**: Missing values may depend on the time sequence or previous values, complicating their imputation.
 - **Inter-Subject Variability**: Variability across subjects can lead to distinct patterns of missingness, requiring nuanced imputation strategies.
 
-## `mice` in Panel Data Context
+### `mice` in Panel Data Context
 
 The `mice` package in R, standing for Multivariate Imputation by Chained Equations, offers a sophisticated solution for handling missing data in panel datasets. It performs multiple imputation, creating several plausible fill-ins for missing data points which are then analyzed to account for the uncertainty inherent in the process of guessing these values.
 
@@ -73,7 +76,7 @@ Using `mice` in panel data settings is advantageous as it:
 - Handles complex missing data scenarios where missingness is dependent on time and other variables.
 - Utilizes all available data to inform the imputation process, thereby enhancing the accuracy and reliability of the data analysis.
 
-## Using the `mice` Package
+### Using the `mice` Package
 
 Before implementing `mice`, ensure your data is appropriately formatted, with subjects and their observations over time clearly structured and missing values marked as `NA`.
 
@@ -81,19 +84,45 @@ Before implementing `mice`, ensure your data is appropriately formatted, with su
 
 The `mice` package can be installed and loaded into an R environment using standard package management commands. It is essential to have the package ready before starting the imputation process.
 
-### Running the Imputation
+# <u>**Data Imputation Application</u>:**
 
-1. **Define the Imputation Model**: Set up the imputation method for each variable in your dataset. `mice` can automatically select suitable methods or allow for manual specification based on detailed knowledge of the data.
-2. **Execute Imputation**: Use the `mice()` function, specifying the number of imputations to generate. This function applies a series of predictive models, each conditioning on other variables, to iteratively fill in missing values across multiple cycles.
+This Shiny app provides tools for data imputation and visualization for clinical trial data. Users can impute missing data for C-peptide and Glucose measurements, visualize the imputed and raw data, and explore summary statistics interactively.
+
+### App Features
+
+The app is divided into several key components:
+
+1. **Data Imputation**: Users can input parameters for multiple imputation and view the progress and status of imputing C-peptide and Glucose data.
+2. **Data Visualization**: Users can explore both raw and imputed data through interactive plots and summary tables.
+
+### Running the App
+
+The app is structured to work within an R environment. To run the app:
+
+1. Ensure all required packages are installed and loaded (e.g., `shiny`, `shinyjs`, `plotly`, `dplyr`, `gt`, `mice`).
+2. Place the app code in an R script or within an R Markdown document with runtime `shiny`.
+3. Execute the app by running the R script or knitting the R Markdown document.
+
+### Imputation Parameters
+
+In the **Data Imputation** section, users can specify:
+
+- **Number of Imputations (m)**: Set the number of multiple imputations to be generated (default is 5).
+- **Imputation Method**: Choose from methods like Predictive Mean Matching (`pmm`), Mean Imputation (`mean`), Normal Imputation (`norm`), Bootstrapped Normal Imputation (`norm.boot`), and Logistic Regression (`logreg`).
+- **Random Seed**: Set a random seed for reproducibility.
+
+```{r logo, echo=FALSE, out.width="100px"}
+htmltools::img(src = knitr::image_uri(file.path("logo.png")),
+               alt = 'logo',
+               style = 'position:absolute; top:0; right:0; padding:10px;',
+               width='400px')
+```
+
+
 ```{r}
 # UI for Imputation App
 ui <- fluidPage(
-  tags$head(
-    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")
-  ),
-  
-  titlePanel("Data Imputation App"),
-  
+
   fluidRow(
     column(12,
            div(class = "well",
@@ -117,7 +146,7 @@ ui <- fluidPage(
   fluidRow(
     column(12,
            div(class = "well",
-               actionButton("runBtn", "Run Imputation", class = "btn-primary", style = "display: block; margin: 0 auto;")
+               actionButton("runBtn", "Run", class = "btn-primary", style = "display: block; margin: 0 auto;")
            )
     )
   ),
@@ -206,29 +235,43 @@ server <- function(input, output, session) {
 shinyApp(ui = ui, server = server)
 ```
 
-<<<<<<< HEAD
-**import data sets into the environment**
-=======
-**import data sets intp the environment**
->>>>>>> 6c217b0e56589a7f901748bd8bc1c21d124b8ca5
 ```{r}
 source("data_clean.R")
 ```
 
 
-# Step 2: Generate Summary Plots
+# <u>**Summary Application</u>:**
+This Shiny app provides tools for visualizing summary statistics for clinical trial data, including glucose and C-peptide measurements. Users can explore summary plots for raw and imputed data, customize the visualization, and interact with the data to gain insights.
 
-## Summary Plots App
+### Customizing the Visualization
+
+The **Data Visualization** section allows customization of how the data is presented:
+
+- **Measurement**: Select between `Glucose` and `C-peptide` data.
+- **Visualization Type**: Choose between `Pooled` data (aggregated across all subjects) or `Individual` data (for a specific subject).
+- **Interaction Plot Variable**: Select whether to plot data against `Visit` (time points) or `Time` (in minutes).
+- **Plot Interaction**: Users can interact with the plots to explore different variables and statistical summaries.
+
+### Additional Settings
+
+- **Summary**: When `Pooled` is selected, users can add a summary statistic (e.g., mean, median) to the plots.
+- **Confidence Interval**: Users can display confidence intervals around the summary statistic.
+- **Summary Type**: Choose the type of summary statistic to display (e.g., mean, sd, median).
+- **Confidence Level**: Adjust the confidence level for intervals (default is 95%).
+
+### Example Usage
+
+Here's how a typical workflow might look:
+
+1. **Set Imputation Parameters**: Adjust the number of imputations, method, and random seed.
+2. **Run Imputation**: Click the "Run Imputation" button to start the process. 
+3. **Visualize Data**: Explore the raw and imputed data using the interactive plots. Switch between pooled and individual data, adjust summary settings, and view confidence intervals.
 
 ```{r }
 
 # UI for the App
 ui <- fluidPage(
   useShinyjs(),  # Enable shinyjs for showing/hiding UI elements
- tags$head(
-    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")
-  ),
-
   # Main UI Elements
   fluidRow(
     column(4,
@@ -575,18 +618,85 @@ shinyApp(ui = ui, server = server)
 
 ```
 
-# Step 3: Generate AUC
+# <u>**AUC Application</u>:**
 
-## AUC calculation
+This Shiny app provides a platform for calculating the Area Under the Curve (AUC) for glucose and C-peptide measurements from clinical trial data. The app also allows for visualizing the calculated AUC, both for raw and imputed data.
+When considering a variable \( Y \) measured at specific time points \( t_1, t_2, \ldots, t_n \) during each visit \( V_j \), the area under the curve (AUC) for an individual visit can be calculated using the trapezoidal rule. This calculation is formally expressed as follows:
 
+$$
+\text{AUC}_{V_j} = \sum_{i=1}^{n_j-1} \frac{(t_{i+1} - t_i) \times (Y_{i+1} + Y_i)}{2}
+$$
+
+In this equation, \( t_i \) represents the time points within a particular visit, and \( Y_i \) denotes the corresponding values of the variable at those time points. The summation across these intervals provides the AUC for the visit \( V_j \).
+
+When the objective is to aggregate the AUCs across multiple visits, the total AUC is determined by summing the AUCs for each visit, which is mathematically represented by:
+
+$$
+\text{Total AUC} = \sum_{j=1}^{m} \text{AUC}_{V_j}
+$$
+
+Alternatively, if an average AUC across all visits is required, this can be calculated by dividing the total AUC by the number of visits \( m \), as shown below:
+
+$$
+\text{Average AUC} = \frac{1}{m} \sum_{j=1}^{m} \text{AUC}_{V_j}
+$$
+
+These formulas provide a structured approach to calculating and aggregating AUCs in studies that involve repeated measurements across multiple visits.
+
+
+### App Features
+
+The app consists of several interactive components:
+
+1. **Data Selection**: Users can select the type of measurement (Glucose or C-peptide) and specify the visualization type (Pooled or Individual).
+2. **AUC Calculation**: The app calculates the AUC using the trapezoidal rule for both raw and imputed data.
+3. **Visualization and Summary**: The app offers customizable options to visualize the AUC results and display summary statistics.
+
+### Running the App
+
+To run the app:
+
+1. Ensure all required packages are installed (e.g., `shiny`, `shinyjs`, `plotly`, `dplyr`, `gt`).
+2. Place the app code in an R script or within an R Markdown document with runtime `shiny`.
+3. Execute the app by running the R script or knitting the R Markdown document.
+
+### Data Selection
+
+In the **Options** section, users can choose between:
+
+- **Measurement**: Select either `Glucose` or `C-peptide` data.
+- **Visualization**: Choose between `Pooled` (aggregated data) or `Individual` (data for a specific subject).
+
+### Additional Settings
+
+In the **Additional Settings** section:
+
+- **Summary**: When `Pooled` is selected, users can enable the summary checkbox to add summary statistics to the plots.
+- **Confidence Interval**: Users can enable confidence intervals for the plotted summary statistics.
+
+### Customizing the Summary
+
+In the **Summary Options** section, users can:
+
+- **Summary Type**: Choose the type of summary statistic to display (e.g., mean, sd, median, min, max, IQR).
+- **Confidence Level**: Adjust the confidence level for intervals (default is 95%).
+- **Select Individual ID**: When `Individual` is selected, users can choose the specific subject ID for visualization.
+
+### Interactive Elements
+
+- **Run Button**: After setting all parameters, click the "Run" button to calculate the AUC and display the plots and summaries.
+- **Plots and Tables**: The app will show the AUC plots and summary tables for both raw and imputed data after the "Run" button is clicked.
+
+### Example Usage
+
+1. **Select Data and Visualization**: Choose `Glucose` or `C-peptide` and whether to view `Pooled` or `Individual` data.
+2. **Adjust Settings**: Toggle the summary and confidence interval options as needed.
+3. **Run AUC Calculation**: Click the "Run" button to perform the AUC calculation and display the results.
+4. **Explore Results**: View and interact with the AUC plots and summary tables.
 
 ```{r}
 ui <- fluidPage(
   useShinyjs(),  # Enable shinyjs for showing/hiding UI elements
-
-   tags$head(
-    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")
-  ),
 
   # Main UI Elements
   fluidRow(
@@ -911,17 +1021,54 @@ server <- function(input, output, session) {
 
 ```
 
+# <u>**Index AUC Application</u>:**
 
-# Step 4: Generate Index Calculation
+This guide explains how to use the Shiny app for calculating and visualizing the Index for Glucose and C-peptide measurements. The cpeptide index AUC is calculated as
+The C-peptide index based on AUC is calculated as:
+
+$$
+\text{C-peptide index (AUC)} = \frac{\text{AUC of C-peptide}}{\text{AUC of Glucose}}\times 100.
+$$
+The app provides two modes of visualization, summary statistics, and confidence intervals, allowing users to explore the raw and imputed data interactively.
+
+### App Features
+
+1. Visualization Mode
+
+The app offers two modes of data visualization:
+
+- **Pooled Mode**: Displays aggregate data for all subjects. This mode enables the calculation of summary statistics and confidence intervals.
+- **Individual Mode**: Displays data for a selected individual subject, allowing the user to explore individual trends in the data.
+
+2. Summary Statistics (Pooled Mode Only)
+
+In Pooled Mode, you can enable the calculation of summary statistics using the following options:
+
+- **Summary Checkbox**: When enabled, the app displays a summary of the data based on the selected summary type.
+- **Summary Type**: Choose from options such as mean, standard deviation (sd), median, minimum (min), maximum (max), and interquartile range (IQR).
+
+3. Confidence Interval (CI) (Pooled Mode Only)
+
+- **CI Checkbox**: When enabled, the app displays the confidence interval for the index. 
+- **Confidence Level**: You can adjust the confidence level (from 80% to 100%) using the provided slider.
+
+ 4. Individual Selection (Individual Mode Only)
+
+In Individual Mode, the app allows you to select a specific subject using a dropdown menu. This feature enables you to visualize the index for individual subjects across different visits.
+
+### Running the App
+
+To run the app:
+
+1. Click the "Run" button to display the selected visualizations and summary statistics.
+2. The app will generate two plots: one for the raw data and one for the imputed data. You can toggle between different visualization modes (Pooled or Individual) and customize the output by enabling or disabling the Summary and Confidence Interval options.
+
+The app will also generate a detailed summary table for both the raw and imputed data. These tables show the index values for each visit and provide an overview of the calculated statistics.
+
 ```{r}
 
 ui <- fluidPage(
   useShinyjs(),  # Enable shinyjs for showing/hiding UI elements
-
-  tags$head(
-    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")
-  ),
-
   # Main UI Elements
   fluidRow(
     column(6,
@@ -1209,5 +1356,9 @@ shinyApp(ui = ui, server = server)
 
 
 ```
- 
+
+## <u>**Conclusion</u>:**
+
+This document has systematically illustrated the application of advanced imputation techniques and dynamic visualizations to enhance the reliability and interpretation of trial data. Through the deployment of the `mice` package and Shiny apps, complexities of handling missing values in panel data are effectively addressed, ensuring a robust analytical foundation. As this exploration concludes, it's crucial to acknowledge that the ability to manipulate and visualize data dynamically not only enriches analysis but also extends the potential for insightful discoveries in clinical research. This serves as a stepping stone towards more data-driven decision-making in future studies.
+
 
