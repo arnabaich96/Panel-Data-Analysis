@@ -1,9 +1,4 @@
 
----
-title: "Interactive Trial Data Analysis"
-output: html_document
----
-
 # Interactive Trial Data Analysis
 
 ## Overview
