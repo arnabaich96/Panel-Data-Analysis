@@ -2,31 +2,40 @@
 title: "Interactive Biomea Trial Data Analysis"
 author: "Your Name"
 date: "`r Sys.Date()`"
-format: 
+format:
   html:
+    embed-resources: true
     theme: cerulean
     toc: true
     toc-title: "Table of Contents"
     code-fold: true
     self_contained: true
-output: 
+output:
+  html_document:
+    self_contained: true
   flexdashboard::flex_dashboard:
     orientation: columns
     vertical_layout: fill
+    storyboard: true
     social: menu
     source_code: embed
-    storyboard: true
     storyboard_options:
       size: medium
       theme: dark
       scroll: true
-    
+navbar:
+  title: "Biomea Trial Data Analysis"
+  left:
+    - text: "Imputation App"
+      href: "#imputation-app"
+    - text: "Summary Plots App"
+      href: "#summary-plots-app"
+    - text: "AUC Calculation App"
+      href: "#auc-calculation-app"
+    - text: "Index Calculation App"
+      href: "#index-calculation-app"
 editor: source
 runtime: shiny
----
----
-title: "Handling Missing Values in Panel Data with the `mice` Package"
-output: html_document
 ---
 
 
@@ -187,60 +196,13 @@ ui <- fluidPage(
     });
   "))
 )
-
-# Server for Imputation App
-server <- function(input, output, session) {
-  
-  observeEvent(input$runBtn, {
-    
-    # C-peptide Data Imputation Progress
-    output$cpepProgressContainer <- renderUI({
-      tags$div(class = "progress-bar-container",
-               tags$div(id = "cpepProgressBar", class = "progress-bar", "0%")
-      )
-    })
-    
-    for (i in 1:10) {
-      Sys.sleep(0.5)  # Simulating computation
-      progress_value <- i * 10
-      session$sendCustomMessage(type = 'updateProgressBar', message = list(id = 'cpepProgressBar', value = progress_value))
-    }
-    
     # Perform C-peptide data imputation
     data_cpep_mice <- complete(mice(data_cpep, m = input$mValue, method = input$method, seed = input$seedValue))
     assign("data_cpep_imputed", data_cpep_mice, envir = .GlobalEnv)
     
-    output$cpepStatus <- renderText({
-      "C-peptide data is ready for visualization."
-    })
-    
-    # Glucose Data Imputation Progress
-    output$glucProgressContainer <- renderUI({
-      tags$div(class = "progress-bar-container",
-               tags$div(id = "glucProgressBar", class = "progress-bar", "0%")
-      )
-    })
-    
-    for (i in 1:10) {
-      Sys.sleep(0.5)  # Simulating computation
-      progress_value <- i * 10
-      session$sendCustomMessage(type = 'updateProgressBar', message = list(id = 'glucProgressBar', value = progress_value))
-    }
-    
     # Perform Glucose data imputation
     data_gluc_mice <- complete(mice(data_gluc, m = input$mValue, method = input$method, seed = input$seedValue))
     assign("data_gluc_imputed", data_gluc_mice, envir = .GlobalEnv)
-    
-    output$glucStatus <- renderText({
-      "Glucose data is ready for visualization."
-    })
-  })
-}
-
-# Run the application
-shinyApp(ui = ui, server = server)
-
-
 
 ```
 
@@ -308,19 +270,17 @@ ui <- fluidPage(
                h3("Options"),
                radioButtons("Measurement", "Measurement:", choices = c("Glucose", "C-peptide"), selected = "C-peptide", inline = TRUE),
                radioButtons("Treatment", "Visualization:", choices = c("Pooled", "Individual"), selected = "Pooled", inline = TRUE),
-               conditionalPanel(
-                 condition = "input.Measurement != 'Index'",
                  radioButtons("plotvariable", "Interaction Plot Variable:", choices = c("Visit", "Time"), selected = "Visit", inline = TRUE)
-               )
+               
            )
     ),
     column(4,
            div(class = "well",
                h3("Additional Settings"),
-               conditionalPanel(condition = "input.Treatment != 'Individual",
+               conditionalPanel(condition = "input.Treatment == 'Pooled'",
                checkboxInput("Summary", "Summary", value = FALSE)
                ),
-                conditionalPanel(condition = "input.Treatment != 'Individual",
+                conditionalPanel(condition = "input.Treatment == 'Pooled'",
                checkboxInput("CI", "Confidence Interval", value = FALSE)
                 )
            )
@@ -329,16 +289,16 @@ ui <- fluidPage(
            div(class = "well",
                h3("Summary Options"),
                conditionalPanel(
-                 condition = "input.Summary == true && input.Treatment != 'Individual'",
+                 condition = "input.Summary == true ",
                  selectInput("SummaryType", "Summary:", choices = c("mean", "sd", "median", "min", "max", "IQR"), selected = "mean")
                ),
                conditionalPanel(
-                 condition = "input.Treatment == 'Pooled' && input.CI == true",
+                 condition = "input.CI == true",
                  sliderInput("CI_level", "Confidence Level", min = 0.8, max = 1, value = 0.95, step = 0.025)
                ),
                conditionalPanel(
                  condition = "input.Treatment == 'Individual'",
-                 selectInput("selectedID", "Subject ID:", choices = unique(data_cpep$subject), selected = unique(data_cpep$subject)[1])
+                 uiOutput("individualSelect")
            )
     )
   ),
@@ -371,14 +331,10 @@ ui <- fluidPage(
   )
 ))
 
+
+
 # Server for the App
 server <- function(input, output, session) {
-  
-  # Initially hide plots and tables
-  hide("InteractionPlot_raw")
-  hide("Summary_raw")
-  hide("InteractionPlot_imputed")
-  hide("Summary_imputed")
   
   imputed_data <- reactive({
     list(cpep = data_cpep_imputed, gluc = data_gluc_imputed)
@@ -391,7 +347,29 @@ server <- function(input, output, session) {
       list(raw = data_cpep, imputed = imputed_data()$cpep)
     }
   })
-
+   # Hide Summary checkbox if Individual is selected
+  observe({
+    if (input$Treatment == "Individual") {
+      updateCheckboxInput(session, "Summary", value = FALSE)
+      shinyjs::hide("Summary")
+      shinyjs::hide("CI")
+      shinyjs::hide("SummaryType")
+      shinyjs::hide("CI_level")
+      shinyjs::show("individualSelect")
+    } else {
+      shinyjs::show("Summary")
+      shinyjs::show("CI")
+      shinyjs::show("SummaryType")
+      shinyjs::show("CI_level")
+      shinyjs::hide("individualSelect")
+    }
+  })
+ # UI for selecting individual IDs
+  output$individualSelect <- renderUI({
+      selectInput("selectedID", "Select ID:",
+                  choices = unique(data()$raw$subject),
+                  selected = unique(data()$raw$subject)[1])
+  })
   observeEvent(input$runBtn, {
     # Show plots and tables after "Run" button is clicked
     show("InteractionPlot_raw")
@@ -639,7 +617,717 @@ shinyApp(ui = ui, server = server)
 
 
 ```{r}
+ui <- fluidPage(
+  useShinyjs(),  # Enable shinyjs for showing/hiding UI elements
+
+  # Include CSS directly in the app
+  tags$head(
+    tags$style(HTML("
+      body {
+          font-family: 'Arial', sans-serif;
+          background-color: #e8f5e9;
+          color: #1b5e20;
+          padding: 20px;
+      }
+      .container-fluid {
+          padding-left: 50px;
+          padding-right: 50px;
+      }
+      h1, h3 {
+          font-size: 22px;
+          text-align: center;
+          color: #1b5e20;
+          margin-bottom: 15px;
+          font-weight: bold;
+      }
+      .form-group {
+          margin-bottom: 10px;
+      }
+      .well {
+          background-color: #ffffff;
+          padding: 15px;
+          border-radius: 10px;
+          box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+          margin-bottom: 10px;
+      }
+      .col-centered {
+          margin: 0 auto;
+          float: none;
+      }
+      .btn-primary {
+          background-color: #388e3c;
+          border-color: #388e3c;
+          font-size: 16px;
+      }
+      .btn-primary:hover {
+          background-color: #2e7d32;
+          border-color: #2e7d32;
+      }
+    "))
+  ),
+
+  # Main UI Elements
+  fluidRow(
+    column(4,
+           div(class = "well",
+               h3("Options"),
+               radioButtons("Measurement", "Measurement:", choices = c("Glucose", "C-peptide"), selected = "C-peptide", inline = TRUE),
+               radioButtons("Treatment", "Visualization:", choices = c("Pooled", "Individual"), selected = "Pooled", inline = TRUE)
+           )
+    ),
+    column(4,
+           div(class = "well",
+               h3("Additional Settings"),
+               conditionalPanel(
+                 condition = "input.Treatment == 'Pooled'",
+                 checkboxInput("AUC_Summary", "Summary", value = FALSE)
+               ),
+               conditionalPanel(
+                 condition = "input.Treatment == 'Pooled'",
+                 checkboxInput("CI", "Confidence Interval", value = FALSE)
+               )
+           )
+    ),
+    column(4,
+           div(class = "well",
+               h3("Summary Options"),
+               conditionalPanel(
+                 condition = "input.AUC_Summary == true ",
+                 selectInput("AUC_SummaryType", "Summary:", choices = c("mean", "sd", "median", "min", "max", "IQR"), selected = "mean")
+               ),
+               conditionalPanel(
+                 condition = "input.CI == true",
+                 sliderInput("CI_level", "Confidence Level", min = 0.8, max = 1, value = 0.95, step = 0.025)
+               ),
+               conditionalPanel(
+                 condition = "input.Treatment == 'Individual'",
+                 uiOutput("individualSelect")
+               )
+           )
+    )
+  ),
+
+  # Run Button
+  fluidRow(
+    column(12,
+           div(class = "well",
+               actionButton("runBtn", "Run", class = "btn-primary", style = "display: block; margin: 0 auto;")
+           )
+    )
+  ),
+
+  # Plots and Tables
+  fluidRow(
+    column(6,
+           div(class = "well",
+               h3("Raw Data"),
+               plotlyOutput("AUCPlot_raw", height = "400px"),
+               uiOutput("AUC_raw")
+           )
+    ),
+    column(6,
+           div(class = "well",
+               h3("Imputed Data"),
+               plotlyOutput("AUCPlot_imputed", height = "400px"),
+               uiOutput("AUC_imputed")
+           )
+    )
+  )
+)
+
+server <- function(input, output, session) {
+  imputed_data <- reactive({
+    list(cpep = data_cpep_imputed, gluc = data_gluc_imputed)
+  })
+  
+
+  data <- reactive({
+    if (input$Measurement == "Glucose") {
+      list(raw = data_gluc, imputed = imputed_data()$gluc)
+    } else {
+      list(raw = data_cpep, imputed = imputed_data()$cpep)
+    }
+  })
+    # Hide Summary checkbox if Individual is selected
+  observe({
+    if (input$Treatment == "Individual") {
+      shinyjs::hide("AUC_Summary")
+      shinyjs::hide("CI")
+      shinyjs::hide("AUC_SummaryType")
+      shinyjs::hide("CI_level")
+      shinyjs::show("individualSelect")
+    } else {
+      shinyjs::show("AUC_Summary")
+      shinyjs::show("CI")
+      shinyjs::show("AUC_SummaryType")
+      shinyjs::show("CI_level") 
+      shinyjs::hide("individualSelect")
+    }
+  })
+  # UI for selecting individual IDs
+  output$individualSelect <- renderUI({
+    selectInput("selectedID", "Select ID:",
+                choices = unique(data()$raw$subject),
+                selected = unique(data()$raw$subject)[1])
+  })
+  observeEvent(input$runBtn, {
+    # Show AUC results after "Run" button is clicked
+    show("AUC_raw")
+    show("AUC_imputed")
+    show("AUCPlot_raw")
+    show("AUCPlot_imputed")
+
+     # AUC Plot for raw data (Left Column) using plotly with conditional CI
+  output$AUCPlot_raw <- renderPlotly({
+    req(input$runBtn)
+    data <- data()$raw
+    data$time <- sapply(data$time, convert_to_minutes)
+
+    auc_trapezoidal <- data %>%
+      group_by(subject, visit) %>%
+      summarise(auc = trapezoidal_auc(as.numeric(time), result)) %>%
+      ungroup()
+    auc_trapezoidal$visit <- factor(auc_trapezoidal$visit, levels = c("0", "2", "4", "8", "12", "16", "20", "26"))
+
+    if (input$Treatment == "Pooled") {
+      summary_data <- auc_trapezoidal %>%
+        group_by(visit) %>%
+        summarise(
+          auc_mean = match.fun(input$AUC_SummaryType)(auc, na.rm = TRUE),
+          auc_sd = sd(auc, na.rm = TRUE),
+          auc_lower = auc_mean - qt(1 - (1 - input$CI_level) / 2, df = n() - 1) * auc_sd / sqrt(n()),
+          auc_upper = auc_mean + qt(1 - (1 - input$CI_level) / 2, df = n() - 1) * auc_sd / sqrt(n())
+        )
+      plot <- plot_ly(summary_data, x = ~visit, y = ~auc_mean, name = 'AUC Mean', type = 'scatter', mode = 'lines+markers') %>%
+        layout(xaxis = list(title = "Visit"),
+               yaxis = list(title = "AUC"),
+               showlegend = FALSE,
+               title = paste("AUC Summary:", input$AUC_SummaryType)
+        )
+
+      if (input$CI) {
+        plot <- plot %>%
+          add_ribbons(ymin = ~auc_lower, ymax = ~auc_upper, name = 'CI',
+                      line = list(color = 'rgba(7, 164, 181, 0.05)'),
+                      fillcolor = 'rgba(7, 164, 181, 0.2)')
+      }
+
+    } else if (input$Treatment == "Individual") {
+      auc_ID <- auc_trapezoidal %>% filter(subject == input$selectedID)
+      plot <- plot_ly(auc_ID, x = ~visit, y = ~auc, type = 'scatter', mode = 'lines+markers',
+                      name = 'AUC') %>%
+        layout(xaxis = list(title = "Visit"),
+               yaxis = list(title = "AUC"),
+               showlegend = FALSE,
+               title = paste("AUC of Subject ID:", input$selectedID)
+        )
+    }
+    plot
+  })
+  
+  # AUC summary table for raw data
+  output$AUC_raw <- renderUI({
+    auc_trapezoidal <- data()$raw %>%
+      group_by(subject, visit) %>%
+      summarise(auc = trapezoidal_auc(as.numeric(time), result)) %>%
+      ungroup()
+    auc_trapezoidal$visit <- factor(auc_trapezoidal$visit, levels = c("0", "2", "4", "8", "12", "16", "20", "26"))
+
+    if (input$Treatment == "Pooled") {
+      summary_data <- auc_trapezoidal %>%
+        group_by(visit) %>%
+        summarise(
+          auc_mean = match.fun(input$AUC_SummaryType)(auc, na.rm = TRUE),
+          auc_sd = sd(auc, na.rm = TRUE),
+          auc_lower = auc_mean - qt(1 - (1 - input$CI_level) / 2, df = n() - 1) * auc_sd / sqrt(n()),
+          auc_upper = auc_mean + qt(1 - (1 - input$CI_level) / 2, df = n() - 1) * auc_sd / sqrt(n())
+        )
+      summary_data$visit <- factor(summary_data$visit, levels = c("0", "2", "4", "8", "12", "16", "20", "26"))
+      gt_table <- gt(summary_data) %>%
+        tab_header(title = paste("AUC Summary:", input$AUC_SummaryType)) %>%
+        fmt_number(columns = everything(), decimals = 2) %>%
+        cols_align(align = "center", columns = everything()) %>%
+        tab_style(
+          style = list(
+            cell_fill(color = "lightgreen"),
+            cell_text(weight = "bold", color = "black")
+          ),
+          locations = cells_column_labels(everything())
+        ) %>%
+        tab_options(table.width = pct(100))
+
+    } else if (input$Treatment == "Individual") {
+      auc_ID <- auc_trapezoidal %>% filter(subject == input$selectedID)
+      gt_table <- gt(auc_ID) %>%
+        tab_header(title = paste("AUC of Subject ID:", input$selectedID)) %>%
+        fmt_number(columns = everything(), decimals = 2) %>%
+        cols_align(align = "center", columns = everything()) %>%
+        tab_style(
+          style = list(
+            cell_fill(color = "lightgreen"),
+            cell_text(weight = "bold", color = "black")
+          ),
+          locations = cells_column_labels(everything())
+        ) %>%
+        tab_options(table.width = pct(100))
+    } else {
+      NULL
+    }
+      gt_output <- gt_table %>%
+        as_raw_html()
+
+      HTML(gt_output)
+    
+    
+  })
+  
+  # AUC plot for Imputed data (Right Column) using plotly with conditional CI
+  output$AUCPlot_imputed <- renderPlotly({
+    req(input$runBtn)
+    data <- data()$imputed
+    data$time <- sapply(data$time, convert_to_minutes)
+
+    auc_trapezoidal <- data %>%
+      filter(!is.na(result)) %>%   # Ensure NA values are excluded
+      group_by(subject, visit) %>%
+      summarise(auc = trapezoidal_auc(as.numeric(time), result)) %>%
+      ungroup()
+    auc_trapezoidal$visit <- factor(auc_trapezoidal$visit, levels = c("0", "2", "4", "8", "12", "16", "20", "26"))
+    if (input$Treatment == "Pooled") {
+      summary_data <- auc_trapezoidal %>%
+        group_by(visit) %>%
+        summarise(
+          auc_mean = match.fun(input$AUC_SummaryType)(auc, na.rm = TRUE),
+          auc_sd = sd(auc, na.rm = TRUE),
+          auc_lower = auc_mean - qt(1 - (1 - input$CI_level) / 2, df = n() - 1) * auc_sd / sqrt(n()),
+          auc_upper = auc_mean + qt(1 - (1 - input$CI_level) / 2, df = n() - 1) * auc_sd / sqrt(n())
+        )
+      summary_data$visit <- factor(summary_data$visit, levels = c("0", "2", "4", "8", "12", "16", "20", "26"))
+      plot <- plot_ly(summary_data, x = ~visit, y = ~auc_mean, name = 'AUC Mean', type = 'scatter', mode = 'lines+markers') %>%
+        layout(xaxis = list(title = "Visit"),
+               yaxis = list(title = "AUC"),
+               showlegend = FALSE,
+               title = paste("AUC Summary:", input$AUC_SummaryType)
+        )
+
+      if (input$CI) {
+        plot <- plot %>%
+          add_ribbons(ymin = ~auc_lower, ymax = ~auc_upper, name = 'CI',
+                      line = list(color = 'rgba(7, 164, 181, 0.05)'),
+                      fillcolor = 'rgba(7, 164, 181, 0.2)')
+      }
+
+    } else if (input$Treatment == "Individual") {
+      auc_ID <- auc_trapezoidal %>% filter(subject == input$selectedID)
+      plot <- plot_ly(auc_ID, x = ~visit, y = ~auc, type = 'scatter', mode = 'lines+markers',
+                      name = 'AUC') %>%
+        layout(xaxis = list(title = "Visit"),
+               yaxis = list(title = "AUC"),
+               showlegend = FALSE,
+               title = paste("AUC of Subject ID:", input$selectedID)
+        )
+    }
+    plot
+  })
+  
+  # AUC summary table for imputed data
+  output$AUC_imputed <- renderUI({
+    auc_trapezoidal <- data()$imputed %>%
+      filter(!is.na(result)) %>%   # Ensure NA values are excluded
+      group_by(subject, visit) %>%
+      summarise(auc = trapezoidal_auc(as.numeric(time), result)) %>%
+      ungroup()
+    auc_trapezoidal$visit <- factor(auc_trapezoidal$visit, levels = c("0", "2", "4", "8", "12", "16", "20", "26"))
+
+    if (input$Treatment == "Pooled") {
+      summary_data <- auc_trapezoidal %>%
+        group_by(visit) %>%
+        summarise(
+          auc_mean = match.fun(input$AUC_SummaryType)(auc, na.rm = TRUE),
+          auc_sd = sd(auc, na.rm = TRUE),
+          auc_lower = auc_mean - qt(1 - (1 - input$CI_level) / 2, df = n() - 1) * auc_sd / sqrt(n()),
+          auc_upper = auc_mean + qt(1 - (1 - input$CI_level) / 2, df = n() - 1) * auc_sd / sqrt(n())
+        )
+      summary_data$visit <- factor(summary_data$visit, levels = c("0", "2", "4", "8", "12", "16", "20", "26"))
+      gt_table <- gt(summary_data) %>%
+        tab_header(title = paste("AUC Summary:", input$AUC_SummaryType)) %>%
+        fmt_number(columns = everything(), decimals = 2) %>%
+        cols_align(align = "center", columns = everything()) %>%
+        tab_style(
+          style = list(
+            cell_fill(color = "lightgreen"),
+            cell_text(weight = "bold", color = "black")
+          ),
+          locations = cells_column_labels(everything())
+        ) %>%
+        tab_options(table.width = pct(100))
+    } else if (input$Treatment == "Individual") {
+      auc_ID <- auc_trapezoidal %>% filter(subject == input$selectedID)
+      gt_table <- gt(auc_ID) %>%
+        tab_header(title = paste("AUC of Subject ID:", input$selectedID)) %>%
+        fmt_number(columns = everything(), decimals = 2) %>%
+        cols_align(align = "center", columns = everything()) %>%
+        tab_style(
+          style = list(
+            cell_fill(color = "lightgreen"),
+            cell_text(weight = "bold", color = "black")
+          ),
+          locations = cells_column_labels(everything())
+        ) %>%
+        tab_options(table.width = pct(100))
+    } else {
+      NULL
+    }
+       gt_output <- gt_table %>%
+        as_raw_html()
+
+      HTML(gt_output)
+  })
+  })
+}
+ shinyApp(ui = ui, server = server)
 
 ```
 
+
+# Step 4: Generate Index Calculation
+```{r}
+
+ui <- fluidPage(
+  useShinyjs(),  # Enable shinyjs for showing/hiding UI elements
+
+  # Include CSS directly in the app
+  tags$head(
+    tags$style(HTML("
+      body {
+          font-family: 'Arial', sans-serif;
+          background-color: #e8f5e9;
+          color: #1b5e20;
+          padding: 20px;
+      }
+      .container-fluid {
+          padding-left: 50px;
+          padding-right: 50px;
+      }
+      h1, h3 {
+          font-size: 22px;
+          text-align: center;
+          color: #1b5e20;
+          margin-bottom: 15px;
+          font-weight: bold;
+      }
+      .form-group {
+          margin-bottom: 10px;
+      }
+      .well {
+          background-color: #ffffff;
+          padding: 15px;
+          border-radius: 10px;
+          box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+          margin-bottom: 10px;
+      }
+      .col-centered {
+          margin: 0 auto;
+          float: none;
+      }
+      .btn-primary {
+          background-color: #388e3c;
+          border-color: #388e3c;
+          font-size: 16px;
+      }
+      .btn-primary:hover {
+          background-color: #2e7d32;
+          border-color: #2e7d32;
+      }
+    "))
+  ),
+
+  # Main UI Elements
+  fluidRow(
+    column(6,
+           div(class = "well",
+               h3("Visualization Summary & CI"),
+               radioButtons("Treatment", "Visualization:", choices = c("Pooled", "Individual"), selected = "Pooled", inline = TRUE),
+               conditionalPanel(condition = "input.Treatment == 'Pooled'",
+                 checkboxInput("Summary", "Summary", value = FALSE),
+                 checkboxInput("CI", "Confidence Interval", value = FALSE)
+               ),
+               conditionalPanel(
+                 condition = "input.Treatment == 'Individual'",
+                 uiOutput("individualSelect")
+               )
+           )
+    ),
+    column(6,
+           div(class = "well",
+               h3("Other Options"),
+               conditionalPanel(
+                 condition = "input.Summary == true & input.Treatment == 'Pooled'",
+                 selectInput("SummaryType", "Summary Type:", choices = c("mean", "sd", "median", "min", "max", "IQR"), selected = "mean")
+               ),
+               conditionalPanel(
+                 condition = "input.CI == true & input.Treatment == 'Pooled'",
+                 sliderInput("CI_level", "Confidence Level:", min = 0.8, max = 1, value = 0.95, step = 0.025)
+               )
+           )
+    )
+  ),
+
+  # Run Button
+  fluidRow(
+    column(12,
+           div(class = "well",
+               actionButton("runBtn", "Run", class = "btn-primary", style = "display: block; margin: 0 auto;")
+           )
+    )
+  ),
+
+  # Plots and Tables (Main Panel - Left as it is)
+  fluidRow(
+    column(6,
+           div(class = "well",
+               h3("Raw Data"),
+               plotlyOutput("IndexPlot_raw", height = "400px"),
+               uiOutput("IndexSummary_raw")
+           )
+    ),
+    column(6,
+           div(class = "well",
+               h3("Imputed Data"),
+               plotlyOutput("IndexPlot_imputed", height = "400px"),
+               uiOutput("IndexSummary_imputed")
+           )
+    )
+  )
+)
+
+server <- function(input, output, session){
+  imputed_data <- reactive({
+    list(cpep = data_cpep_imputed, gluc = data_gluc_imputed)
+  })
+   
+  imputed_data <- reactive({
+    list(cpep = data_cpep_imputed, gluc = data_gluc_imputed)
+  })
+  data <- reactive({
+    list(raw = list(cpep = data_cpep, gluc = data_gluc),
+         imputed = list(cpep = imputed_data()$cpep, gluc = imputed_data()$gluc))
+  })
+  
+  observe({
+    if (input$Treatment == "Individual") {
+      shinyjs::hide("Summary")
+      shinyjs::hide("CI")
+      shinyjs::hide("SummaryType")
+      shinyjs::hide("CI_level")
+      shinyjs::show("individualSelect")
+    } else {
+      shinyjs::show("Summary")
+      shinyjs::show("CI")
+      shinyjs::show("SummaryType")
+      shinyjs::show("CI_level") 
+      shinyjs::hide("individualSelect")
+    }
+  })
+  
+  output$individualSelect <- renderUI({
+    selectInput("selectedID", "Select ID:",
+                choices = unique(data()$raw$cpep$subject),
+                selected = unique(data()$raw$cpep$subject)[1])
+  })
+  
+  observeEvent(input$runBtn, {
+    shinyjs::show("IndexPlot_raw")
+    shinyjs::show("IndexPlot_imputed")
+    shinyjs::show("IndexSummary_raw")
+    shinyjs::show("IndexSummary_imputed")
+    
+    # Interaction Plot for Raw Data Index using plotly
+    output$IndexPlot_raw <- renderPlotly({
+      req(input$runBtn)
+      
+      plot_data <- calculate_index(data()$raw$cpep, data()$raw$gluc)
+      
+      if (input$Treatment == "Pooled") {
+        summary_data <- plot_data %>%
+          group_by(visit) %>%
+          summarise(
+            index_mean = round(match.fun(input$SummaryType)(index, na.rm = TRUE), 3),
+            index_sd = sd(index, na.rm = TRUE),
+            index_lower = index_mean - qt(1 - (1 - input$CI_level) / 2, df = n() - 1) * index_sd / sqrt(n()),
+            index_upper = index_mean + qt(1 - (1 - input$CI_level) / 2, df = n() - 1) * index_sd / sqrt(n())
+          ) %>%
+          ungroup()
+        
+        plot <- plot_ly(summary_data, x = ~visit, y = ~index_mean, type = 'scatter', mode = 'lines+markers') %>%
+          layout(
+            xaxis = list(title = "Visit"),
+            yaxis = list(title = "Index"),
+            title = paste("Index Summary:", input$SummaryType)
+          )
+        if (input$CI) {
+          plot <- plot %>%
+            add_ribbons(
+              ymin = ~index_lower, ymax = ~index_upper,
+              line = list(color = 'transparent'),
+              fillcolor = ~paste0("rgba(", col2rgb("red")[1], ",", col2rgb("red")[2], ",", col2rgb("red")[3], ",0.2)"),
+              hoverinfo = "none",
+              showlegend = FALSE
+            )
+        }
+      } else if (input$Treatment == "Individual") {
+        plot_data <- plot_data %>% filter(subject == input$selectedID)
+        
+        plot <- plot_ly(plot_data %>% filter(!is.na(index)), x = ~visit, y = ~index, type = 'scatter', mode = 'lines+markers') %>%
+          layout(
+            xaxis = list(title = "Visit"),
+            yaxis = list(title = "Index"),
+            title = paste("Subject ID:", input$selectedID)
+          )
+      }
+      plot
+    })
+    
+    # Interaction Plot for Imputed Data Index using plotly
+    output$IndexPlot_imputed <- renderPlotly({
+      req(input$runBtn)
+      
+      plot_data <- calculate_index(data()$imputed$cpep, data()$imputed$gluc)
+      
+      if (input$Treatment == "Pooled") {
+        summary_data <- plot_data %>%
+          group_by(visit) %>%
+          summarise(
+            index_mean = round(match.fun(input$SummaryType)(index, na.rm = TRUE), 3),
+            index_sd = sd(index, na.rm = TRUE),
+            index_lower = index_mean - qt(1 - (1 - input$CI_level) / 2, df = n() - 1) * index_sd / sqrt(n()),
+            index_upper = index_mean + qt(1 - (1 - input$CI_level) / 2, df = n() - 1) * index_sd / sqrt(n())
+          ) %>%
+          ungroup()
+        
+        plot <- plot_ly(summary_data, x = ~visit, y = ~index_mean, type = 'scatter', mode = 'lines+markers') %>%
+          layout(
+            xaxis = list(title = "Visit"),
+            yaxis = list(title = "Index"),
+            title = paste("Index Summary :", input$SummaryType)
+          )
+        
+        if (input$CI) {
+          plot <- plot %>%
+            add_ribbons(
+              ymin = ~index_lower, ymax = ~index_upper,
+              line = list(color = 'transparent'),
+              fillcolor = ~paste0("rgba(", col2rgb("red")[1], ",", col2rgb("red")[2], ",", col2rgb("red")[3], ",0.2)"),
+              hoverinfo = "none",
+              showlegend = FALSE
+            )
+        }
+      } else if (input$Treatment == "Individual") {
+        plot_data <- plot_data %>% filter(subject == input$selectedID)
+        plot <- plot_ly(plot_data %>% filter(!is.na(index)), x = ~visit, y = ~index, type = 'scatter', mode = 'lines+markers') %>%
+          layout(
+            xaxis = list(title = "Visit"),
+            yaxis = list(title = "Index"),
+            title = paste("Subject ID:", input$selectedID)
+          )
+      }
+      
+      plot
+    })
+    
+    # Summary for Raw Data Index using gt
+    output$IndexSummary_raw <- renderUI({
+      req(input$runBtn)
+      
+      index_data <- calculate_index(data()$raw$cpep, data()$raw$gluc)
+      
+      summary_data <- if (input$Treatment == "Pooled") {
+        index_data %>%
+          group_by(visit) %>%
+          summarise(index_summary = round(match.fun(input$SummaryType)(index, na.rm = TRUE), 3)) %>%
+          pivot_wider(names_from = visit, values_from = index_summary)
+      } else {
+        index_data %>%
+          filter(subject == input$selectedID) %>%
+          group_by(visit) %>%
+          summarise(index_summary = round(index, 3)) %>%
+          pivot_wider(names_from = visit, values_from = index_summary)
+      }
+      
+      title_text <- if (input$Treatment == "Pooled") {
+        paste("Index Summary:", input$SummaryType)
+      } else {
+        paste("Subject ID:", input$selectedID)
+      }
+      
+      gt_table <- gt(summary_data) %>%
+        tab_header(title = title_text) %>%
+        fmt_number(columns = everything(), decimals = 2) %>%
+        cols_align(align = "center", columns = everything()) %>%
+        tab_style(
+          style = list(
+            cell_fill(color = "lightgreen"),
+            cell_text(weight = "bold", color = "black")
+          ),
+          locations = cells_column_labels(everything())
+        ) %>%
+        tab_options(table.width = pct(100))
+      
+      gt_output <- gt_table %>%
+        as_raw_html()
+      
+      HTML(gt_output)
+    })
+    
+    # Summary for Imputed Data Index using gt
+    output$IndexSummary_imputed <- renderUI({
+      req(input$runBtn)
+      
+      index_data <- calculate_index(data()$imputed$cpep, data()$imputed$gluc)
+      
+      summary_data <- if (input$Treatment == "Pooled") {
+        index_data %>%
+          group_by(visit) %>%
+          summarise(index_summary = round(match.fun(input$SummaryType)(index, na.rm = TRUE), 3)) %>%
+          pivot_wider(names_from = visit, values_from = index_summary)
+      } else {
+        index_data %>%
+          filter(subject == input$selectedID) %>%
+          group_by(visit) %>%
+          summarise(index_summary = round(index, 3)) %>%
+          pivot_wider(names_from = visit, values_from = index_summary)
+      }
+      
+      title_text <- if (input$Treatment == "Pooled") {
+        paste("Index Summary :", input$SummaryType)
+      } else {
+        paste("Subject ID:", input$selectedID)
+      }
+      
+      gt_table <- gt(summary_data) %>%
+        tab_header(title = title_text) %>%
+        fmt_number(columns = everything(), decimals = 2) %>%
+        cols_align(align = "center", columns = everything()) %>%
+        tab_style(
+          style = list(
+            cell_fill(color = "lightgreen"),
+            cell_text(weight = "bold", color = "black")
+          ),
+          locations = cells_column_labels(everything())
+        ) %>%
+        tab_options(table.width = pct(100))
+      
+      gt_output <- gt_table %>%
+        as_raw_html()
+      
+      HTML(gt_output)
+    })
+  })
+}
+
+shinyApp(ui = ui, server = server)
+
+
+```
+ 
 
