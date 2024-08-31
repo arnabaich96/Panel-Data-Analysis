@@ -206,7 +206,11 @@ server <- function(input, output, session) {
 shinyApp(ui = ui, server = server)
 ```
 
+<<<<<<< HEAD
 **import data sets into the environment**
+=======
+**import data sets intp the environment**
+>>>>>>> 6c217b0e56589a7f901748bd8bc1c21d124b8ca5
 ```{r}
 source("data_clean.R")
 ```
