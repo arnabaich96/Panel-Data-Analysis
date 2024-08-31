@@ -286,8 +286,14 @@ data_gluc$time <- factor(data_gluc$time, levels = c("0hr", "0.5hr", "1hr", "1.5h
 data_gluc$visit <- factor(data_gluc$visit, levels = c("0", "2", "4", "8", "12", "16", "20", "26"))
 # remove everything from the environment except  two data frames
 rm(list=setdiff(ls(), c("data_cpep", "data_gluc")))
+# reading imputed datasets
+data_cpep_imputed <- read.csv("data/data_cpep_imputed.csv")
+data_cpep_imputed$time <- factor(data_cpep$time, levels = c("0hr", "0.5hr", "1hr", "1.5hr", "2hr"))
+data_cpep_imputed$visit <- factor(data_cpep$visit, levels = c("0", "2", "4", "8", "12", "16", "20", "26"))
 
-
+data_gluc_imputed <- read.csv("data/data_gluc_imputed.csv")
+data_gluc_imputed$time <- factor(data_gluc$time, levels = c("0hr", "0.5hr", "1hr", "1.5hr", "2hr"))
+data_gluc_imputed$visit <- factor(data_gluc$visit, levels = c("0", "2", "4", "8", "12", "16", "20", "26"))
 # Helper functions --------------------------------------------------------
 
 # Function to calculate AUC using the trapezoidal rule

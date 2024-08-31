@@ -1,6 +1,6 @@
 ---
-title: "Interactive Biomea Trial Data Analysis"
-author: "Your Name"
+title: "Interactive Trial Data Analysis"
+author: "Arnab Aich"
 date: "`r Sys.Date()`"
 format:
   html:
@@ -41,7 +41,6 @@ runtime: shiny
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
-source("data_clean.R")
 library(shiny)
 library(plotly)
 library(dplyr)
@@ -90,54 +89,7 @@ The `mice` package can be installed and loaded into an R environment using stand
 # UI for Imputation App
 ui <- fluidPage(
   tags$head(
-    tags$style(HTML("
-        body {
-            font-family: 'Arial', sans-serif;
-            background-color: #e8f5e9;
-            color: #1b5e20;
-            padding: 20px;
-        }
-        .container-fluid {
-            padding-left: 50px;
-            padding-right: 50px;
-        }
-        h1, h3 {
-            font-size: 22px;
-            text-align: center;
-            color: #1b5e20;
-            margin-bottom: 15px;
-            font-weight: bold;
-        }
-        .form-group {
-            margin-bottom: 10px;
-        }
-        .well {
-            background-color: #ffffff;
-            padding: 15px;
-            border-radius: 10px;
-            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
-            margin-bottom: 10px;
-        }
-        .progress-bar-container {
-            background-color: #f3f3f3;
-            border-radius: 13px;
-            padding: 3px;
-            margin-top: 10px;
-            margin-bottom: 10px;
-            width: 100%;
-            height: 30px;
-        }
-        .progress-bar {
-            height: 100%;
-            border-radius: 10px;
-            background-color: #388e3c;
-            width: 0%;
-            text-align: center;
-            line-height: 24px;
-            color: white;
-            font-weight: bold;
-        }
-    "))
+    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")
   ),
   
   titlePanel("Data Imputation App"),
@@ -196,14 +148,67 @@ ui <- fluidPage(
     });
   "))
 )
-    # Perform C-peptide data imputation
+
+# Server for Imputation App
+server <- function(input, output, session) {
+
+  observeEvent(input$runBtn, {
+
+    # Show progress bars
+    output$cpepProgressContainer <- renderUI({
+      tags$div(class = "progress-bar-container",
+               tags$div(id = "cpepProgressBar", class = "progress-bar", "0%")
+      )
+    })
+    
+    output$glucProgressContainer <- renderUI({
+      tags$div(class = "progress-bar-container",
+               tags$div(id = "glucProgressBar", class = "progress-bar", "0%")
+      )
+    })
+
+    # Perform C-peptide data imputation with progress simulation
+    for (i in 1:10) {
+      Sys.sleep(0.5)  # Simulating computation
+      progress_value <- i * 10
+      session$sendCustomMessage(type = 'updateProgressBar', message = list(id = 'cpepProgressBar', value = progress_value))
+    }
+    
     data_cpep_mice <- complete(mice(data_cpep, m = input$mValue, method = input$method, seed = input$seedValue))
     assign("data_cpep_imputed", data_cpep_mice, envir = .GlobalEnv)
     
-    # Perform Glucose data imputation
+    # Save C-peptide imputed data to file
+    write.csv(data_cpep_imputed, file = paste0("data/data_cpep_imputed.csv"), row.names = FALSE)
+    
+    output$cpepStatus <- renderText({
+      "C-peptide data has been saved."
+    })
+    
+    # Perform Glucose data imputation with progress simulation
+    for (i in 1:10) {
+      Sys.sleep(0.5)  # Simulating computation
+      progress_value <- i * 10
+      session$sendCustomMessage(type = 'updateProgressBar', message = list(id = 'glucProgressBar', value = progress_value))
+    }
+    
     data_gluc_mice <- complete(mice(data_gluc, m = input$mValue, method = input$method, seed = input$seedValue))
     assign("data_gluc_imputed", data_gluc_mice, envir = .GlobalEnv)
+    
+    # Save Glucose imputed data to file
+    write.csv(data_gluc_imputed, file = paste0("data/data_gluc_imputed.csv"), row.names = FALSE)
+    
+    output$glucStatus <- renderText({
+      "Glucose data has been saved."
+    })
+  })
+}
 
+shinyApp(ui = ui, server = server)
+```
+
+**import data sets into the environment**
+```{r}
+source("data_clean.R")
 ```
 
 
@@ -216,51 +221,8 @@ ui <- fluidPage(
 # UI for the App
 ui <- fluidPage(
   useShinyjs(),  # Enable shinyjs for showing/hiding UI elements
-
-  # Include CSS directly in the app
-  tags$head(
-    tags$style(HTML("
-      body {
-          font-family: 'Arial', sans-serif;
-          background-color: #e8f5e9;
-          color: #1b5e20;
-          padding: 20px;
-      }
-      .container-fluid {
-          padding-left: 50px;
-          padding-right: 50px;
-      }
-      h1, h3 {
-          font-size: 22px;
-          text-align: center;
-          color: #1b5e20;
-          margin-bottom: 15px;
-          font-weight: bold;
-      }
-      .form-group {
-          margin-bottom: 10px;
-      }
-      .well {
-          background-color: #ffffff;
-          padding: 15px;
-          border-radius: 10px;
-          box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
-          margin-bottom: 10px;
-      }
-      .col-centered {
-          margin: 0 auto;
-          float: none;
-      }
-      .btn-primary {
-          background-color: #388e3c;
-          border-color: #388e3c;
-          font-size: 16px;
-      }
-      .btn-primary:hover {
-          background-color: #2e7d32;
-          border-color: #2e7d32;
-      }
-    "))
+ tags$head(
+    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")
   ),
 
   # Main UI Elements
@@ -604,10 +566,8 @@ server <- function(input, output, session) {
     })
   })
 }
-
 # Run the application
 shinyApp(ui = ui, server = server)
-
 
 ```
 
@@ -620,50 +580,8 @@ shinyApp(ui = ui, server = server)
 ui <- fluidPage(
   useShinyjs(),  # Enable shinyjs for showing/hiding UI elements
 
-  # Include CSS directly in the app
-  tags$head(
-    tags$style(HTML("
-      body {
-          font-family: 'Arial', sans-serif;
-          background-color: #e8f5e9;
-          color: #1b5e20;
-          padding: 20px;
-      }
-      .container-fluid {
-          padding-left: 50px;
-          padding-right: 50px;
-      }
-      h1, h3 {
-          font-size: 22px;
-          text-align: center;
-          color: #1b5e20;
-          margin-bottom: 15px;
-          font-weight: bold;
-      }
-      .form-group {
-          margin-bottom: 10px;
-      }
-      .well {
-          background-color: #ffffff;
-          padding: 15px;
-          border-radius: 10px;
-          box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
-          margin-bottom: 10px;
-      }
-      .col-centered {
-          margin: 0 auto;
-          float: none;
-      }
-      .btn-primary {
-          background-color: #388e3c;
-          border-color: #388e3c;
-          font-size: 16px;
-      }
-      .btn-primary:hover {
-          background-color: #2e7d32;
-          border-color: #2e7d32;
-      }
-    "))
+   tags$head(
+    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")
   ),
 
   # Main UI Elements
@@ -996,50 +914,8 @@ server <- function(input, output, session) {
 ui <- fluidPage(
   useShinyjs(),  # Enable shinyjs for showing/hiding UI elements
 
-  # Include CSS directly in the app
   tags$head(
-    tags$style(HTML("
-      body {
-          font-family: 'Arial', sans-serif;
-          background-color: #e8f5e9;
-          color: #1b5e20;
-          padding: 20px;
-      }
-      .container-fluid {
-          padding-left: 50px;
-          padding-right: 50px;
-      }
-      h1, h3 {
-          font-size: 22px;
-          text-align: center;
-          color: #1b5e20;
-          margin-bottom: 15px;
-          font-weight: bold;
-      }
-      .form-group {
-          margin-bottom: 10px;
-      }
-      .well {
-          background-color: #ffffff;
-          padding: 15px;
-          border-radius: 10px;
-          box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
-          margin-bottom: 10px;
-      }
-      .col-centered {
-          margin: 0 auto;
-          float: none;
-      }
-      .btn-primary {
-          background-color: #388e3c;
-          border-color: #388e3c;
-          font-size: 16px;
-      }
-      .btn-primary:hover {
-          background-color: #2e7d32;
-          border-color: #2e7d32;
-      }
-    "))
+    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")
   ),
 
   # Main UI Elements
