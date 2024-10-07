@@ -1,7 +1,7 @@
 ---
 title: "<div style='text-align:center ;font-size:40px;'><u>**Interactive Trial Data Analysis**</u></span>"
 author: "<div style= 'text-align:center ; font-size:34px;'>Arnab Aich</span>"
-date: "<div style= 'text-align:center ;font-size:24px;'> </span>"
+date: "<div style= 'text-align:center ;font-size:24px;'>`r format(Sys.Date(), '%b-%y')` </span>"
 format: 
   html:
     embed-resources: true
@@ -31,6 +31,7 @@ header-includes:
     }
     </style>
 navbar:
+  title: " Trial Data Analysis"
   left:
     - text: "Imputation App"
       href: "#imputation-app"
@@ -51,10 +52,15 @@ library(dplyr)
 library(mice)
 library(shinyjs)
 library(gt)
+library(tidyverse)
 library(shinyWidgets) 
 library(shinycssloaders)
-library(tidyverse)
-
+source("helper.R")
+ # import dataset
+  data_cpep <- read.csv("data/CPEP_Data_with_Missing_Values.csv")
+  assign("data_cpep", data_cpep, envir = .GlobalEnv)
+  data_gluc <- read.csv("data/Glucose_Data_with_Missing_Values.csv")
+  assign("data_gluc", data_gluc, envir = .GlobalEnv)
 ```
 Missing value analysis is crucial in ensuring the accuracy and validity of data analyses, especially in panel data which involves observations over time for the same subjects or entities. This type of data is particularly prone to missing entries due to various factors like attrition or non-response, which can introduce bias and affect the conclusions if not properly managed.
 
@@ -112,6 +118,7 @@ In the **Data Imputation** section, users can specify:
 - **Random Seed**: Set a random seed for reproducibility.
 
 
+
 ```{r}
 # UI for Imputation App
 ui <- fluidPage(
@@ -135,6 +142,7 @@ ui <- fluidPage(
            )
     )
   ),
+  
   fluidRow(
     column(12,
            div(class = "well",
@@ -172,9 +180,6 @@ ui <- fluidPage(
 
 # Server for Imputation App
 server <- function(input, output, session) {
-  # import dataset
-  data_cpep <- read.csv("data/CPEP_Data_with_Missing_Values.csv")
-  data_gluc <- read.csv("data/Glucose_Data_with_Missing_Values.csv")
 
   observeEvent(input$runBtn, {
 
@@ -228,6 +233,14 @@ server <- function(input, output, session) {
 }
 
 shinyApp(ui = ui, server = server)
+```
+
+```{r}
+data_cpep_imputed <- read.csv("data/data_cpep_imputed.csv")
+assign("data_cpep_imputed", data_cpep_imputed, envir = .GlobalEnv)
+data_gluc_imputed <- read.csv("data/data_gluc_imputed.csv")
+assign("data_gluc_imputed", data_gluc_imputed, envir = .GlobalEnv)
+
 ```
 
 
@@ -524,7 +537,7 @@ server <- function(input, output, session) {
     })
 
     # Summary statistics for Raw Data
- output$Summary_raw <- renderUI({
+    output$Summary_raw <- renderUI({
       summary_data <- if (input$Treatment == "Pooled") {
         data()$raw %>%
           group_by(visit, time) %>%
@@ -762,7 +775,6 @@ server <- function(input, output, session) {
   imputed_data <- reactive({
     list(cpep = data_cpep_imputed, gluc = data_gluc_imputed)
   })
-  
 
   data <- reactive({
     if (input$Measurement == "Glucose") {
@@ -850,7 +862,10 @@ server <- function(input, output, session) {
   
   # AUC summary table for raw data
   output$AUC_raw <- renderUI({
-    auc_trapezoidal <- data()$raw %>%
+    req(input$runBtn)
+    data <- data()$raw
+    data$time <- sapply(data$time, convert_to_minutes)
+    auc_trapezoidal <- data %>%
       group_by(subject, visit) %>%
       summarise(auc = trapezoidal_auc(as.numeric(time), result)) %>%
       ungroup()
@@ -879,7 +894,8 @@ server <- function(input, output, session) {
         ) %>%
         tab_options(table.width = pct(100))
 
-    } else if (input$Treatment == "Individual") {
+    } else if (input$Treatment == "Individual") 
+      {
       auc_ID <- auc_trapezoidal %>% filter(subject == input$selectedID)
       gt_table <- gt(auc_ID) %>%
         tab_header(title = paste("AUC of Subject ID:", input$selectedID)) %>%
@@ -955,7 +971,10 @@ server <- function(input, output, session) {
   
   # AUC summary table for imputed data
   output$AUC_imputed <- renderUI({
-    auc_trapezoidal <- data()$imputed %>%
+ req(input$runBtn)
+    data <- data()$raw
+    data$time <- sapply(data$time, convert_to_minutes)
+    auc_trapezoidal <- data %>%
       filter(!is.na(result)) %>%   # Ensure NA values are excluded
       group_by(subject, visit) %>%
       summarise(auc = trapezoidal_auc(as.numeric(time), result)) %>%
@@ -1120,9 +1139,7 @@ ui <- fluidPage(
 )
 
 server <- function(input, output, session){
-  # import dataset
-  data_cpep <- read.csv("data/CPEP_Data_with_Missing_Values.csv")
-  data_gluc <- read.csv("data/Glucose_Data_with_Missing_Values.csv")
+   
   imputed_data <- reactive({
     list(cpep = data_cpep_imputed, gluc = data_gluc_imputed)
   })
@@ -1255,9 +1272,7 @@ server <- function(input, output, session){
     # Summary for Raw Data Index using gt
     output$IndexSummary_raw <- renderUI({
       req(input$runBtn)
-      
       index_data <- calculate_index(data()$raw$cpep, data()$raw$gluc)
-      
       summary_data <- if (input$Treatment == "Pooled") {
         index_data %>%
           group_by(visit) %>%
