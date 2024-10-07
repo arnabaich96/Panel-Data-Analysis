@@ -1,7 +1,7 @@
 ---
 title: "<div style='text-align:center ;font-size:40px;'><u>**Interactive Trial Data Analysis**</u></span>"
 author: "<div style= 'text-align:center ; font-size:34px;'>Arnab Aich</span>"
-date: "<div style= 'text-align:center ;font-size:24px;'>`r format(Sys.Date(), '%b-%y')` </span>"
+date: "<div style= 'text-align:center ;font-size:24px;'> </span>"
 format: 
   html:
     embed-resources: true
@@ -31,7 +31,6 @@ header-includes:
     }
     </style>
 navbar:
-  title: "Biomea Trial Data Analysis"
   left:
     - text: "Imputation App"
       href: "#imputation-app"
@@ -54,6 +53,7 @@ library(shinyjs)
 library(gt)
 library(shinyWidgets) 
 library(shinycssloaders)
+library(tidyverse)
 
 ```
 Missing value analysis is crucial in ensuring the accuracy and validity of data analyses, especially in panel data which involves observations over time for the same subjects or entities. This type of data is particularly prone to missing entries due to various factors like attrition or non-response, which can introduce bias and affect the conclusions if not properly managed.
@@ -111,13 +111,6 @@ In the **Data Imputation** section, users can specify:
 - **Imputation Method**: Choose from methods like Predictive Mean Matching (`pmm`), Mean Imputation (`mean`), Normal Imputation (`norm`), Bootstrapped Normal Imputation (`norm.boot`), and Logistic Regression (`logreg`).
 - **Random Seed**: Set a random seed for reproducibility.
 
-```{r logo, echo=FALSE, out.width="100px"}
-htmltools::img(src = knitr::image_uri(file.path("logo.png")),
-               alt = 'logo',
-               style = 'position:absolute; top:0; right:0; padding:10px;',
-               width='400px')
-```
-
 
 ```{r}
 # UI for Imputation App
@@ -142,7 +135,6 @@ ui <- fluidPage(
            )
     )
   ),
-  
   fluidRow(
     column(12,
            div(class = "well",
@@ -180,6 +172,9 @@ ui <- fluidPage(
 
 # Server for Imputation App
 server <- function(input, output, session) {
+  # import dataset
+  data_cpep <- read.csv("data/CPEP_Data_with_Missing_Values.csv")
+  data_gluc <- read.csv("data/Glucose_Data_with_Missing_Values.csv")
 
   observeEvent(input$runBtn, {
 
@@ -233,10 +228,6 @@ server <- function(input, output, session) {
 }
 
 shinyApp(ui = ui, server = server)
-```
-
-```{r}
-source("data_clean.R")
 ```
 
 
@@ -533,7 +524,7 @@ server <- function(input, output, session) {
     })
 
     # Summary statistics for Raw Data
-    output$Summary_raw <- renderUI({
+ output$Summary_raw <- renderUI({
       summary_data <- if (input$Treatment == "Pooled") {
         data()$raw %>%
           group_by(visit, time) %>%
@@ -1129,10 +1120,9 @@ ui <- fluidPage(
 )
 
 server <- function(input, output, session){
-  imputed_data <- reactive({
-    list(cpep = data_cpep_imputed, gluc = data_gluc_imputed)
-  })
-   
+  # import dataset
+  data_cpep <- read.csv("data/CPEP_Data_with_Missing_Values.csv")
+  data_gluc <- read.csv("data/Glucose_Data_with_Missing_Values.csv")
   imputed_data <- reactive({
     list(cpep = data_cpep_imputed, gluc = data_gluc_imputed)
   })

@@ -57,7 +57,7 @@ ui <- fluidPage(
   ),
 
   # Title Panel
-  titlePanel("Biomea Trial 111 and 112 Data"),
+  titlePanel("Interactive Panel Data Analysis with missing values"),
 
   # Imputation Input Parameters
   fluidRow(
@@ -192,11 +192,9 @@ ui <- fluidPage(
 # Server ------------------------------------------------------------------
 server <- function(input, output, session) {
 
-  # Source the data_clean.R script to generate data_cpep and data_gluc
-  source("data_clean.R")
-
-  # Ensure the datasets data_cpep and data_gluc are loaded and accessible
-  req(exists("data_cpep"), exists("data_gluc"))
+# import dataset
+  data_cpep <- read.csv("data/CPEP_Data_with_Missing_Values.csv")
+  data_gluc <- read.csv("data/Glucose_Data_with_Missing_Values.csv")
 
   # Cpeptide data - Create all combinations to ensure full data coverage
   all_combinations_cpep <- expand.grid(
