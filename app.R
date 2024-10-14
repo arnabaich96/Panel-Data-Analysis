@@ -5,76 +5,42 @@ library(dplyr)
 library(gt)
 library(tidyverse)
 library(mice)
+library(readr)
 source("helper.R")
 # UI ----------------------------------------------------------------------
 ui <- fluidPage(
-  useShinyjs(),  # Enable shinyjs
-
-  # Include CSS directly in the app
+  # Link to external CSS file
   tags$head(
-    tags$style(HTML("
-            body {
-                font-family: 'Arial', sans-serif;
-                background-color: #e8f5e9;
-                color: #1b5e20;
-                padding: 20px;
-            }
-            .container-fluid {
-                padding-left: 50px;
-                padding-right: 50px;
-            }
-            h1, h3 {
-                font-size: 22px;
-                text-align: center;
-                color: #1b5e20;
-                margin-bottom: 15px;
-                font-weight: bold;
-            }
-            .form-group {
-                margin-bottom: 10px;
-            }
-            .well {
-                background-color: #ffffff;
-                padding: 15px;
-                border-radius: 10px;
-                box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
-                margin-bottom: 10px;
-            }
-            .col-centered {
-                margin: 0 auto;
-                float: none;
-            }
-            .btn-primary {
-                background-color: #388e3c;
-                border-color: #388e3c;
-                font-size: 16px;
-            }
-            .btn-primary:hover {
-                background-color: #2e7d32;
-                border-color: #2e7d32;
-            }
-        "))
+    tags$link(rel = "stylesheet", type = "text/css", href = "styles.css")
   ),
 
   # Title Panel
   titlePanel("Interactive Panel Data Analysis with missing values"),
 
-  # Imputation Input Parameters
   fluidRow(
-    column(12,
+    column(6,
            div(class = "well",
-               h3("Imputation Input Parameters"),
-               fluidRow(
-                 column(4, numericInput("mValue", "Number of Imputations (m):", value = 5, min = 1)),
-                 column(4, selectInput("method", "Imputation Method:",
-                                       choices = c("pmm", "mean", "norm", "norm.boot", "logreg"),
-                                       selected = "pmm")),
-                 column(4, numericInput("seedValue", "Random Seed:", value = 123))
-               ),
-               fluidRow(
-                 column(12, actionButton("runBtn", "Run", class = "btn-primary", style = "display: block; margin: 0 auto;"))
-               )
+               h3("Upload CPEP Data"),
+               fileInput("cpepData", "Choose a CSV file:",multiple = FALSE, accept = ".csv")
            )
+    ),
+    column(6,
+           div(class = "well",
+               h3("Upload Glucose Data"),
+               fileInput("glucoseData", "Choose a CSV file:",multiple = FALSE, accept = ".csv")
+           )
+    )
+  ),
+
+  # Imputation Parameters and Run Button
+  fluidRow(
+    div(class = "well",
+        h3("Imputation Input Parameters"),
+        fluidRow(
+          column(4, numericInput("mValue", "Number of Imputations (m):", value = 5, min = 1)),
+          column(4, selectInput("method", "Imputation Method:", choices = c("pmm", "mean", "norm", "norm.boot", "logreg"))),
+          column(4, actionButton("runBtn", "Analyze", class = "btn-primary"))
+        )
     )
   ),
 
@@ -191,57 +157,57 @@ ui <- fluidPage(
 
 # Server ------------------------------------------------------------------
 server <- function(input, output, session) {
-
-# import dataset
-  data_cpep <- read.csv("data/CPEP_Data_with_Missing_Values.csv")
-  data_gluc <- read.csv("data/Glucose_Data_with_Missing_Values.csv")
-
-  # Cpeptide data - Create all combinations to ensure full data coverage
-  all_combinations_cpep <- expand.grid(
-    visit = unique(data_cpep$visit),
-    time = unique(data_cpep$time),
-    subject = unique(data_cpep$subject)
-  )
-  data_cpep1 <- left_join(all_combinations_cpep, data_cpep, by = c("visit", "time", "subject"))
-
-  # Glucose data - Create all combinations to ensure full data coverage
-  all_combinations_gluc <- expand.grid(
-    visit = unique(data_gluc$visit),
-    time = unique(data_gluc$time),
-    subject = unique(data_gluc$subject)
-  )
-  data_gluc1 <- left_join(all_combinations_gluc, data_gluc, by = c("visit", "time", "subject"))
-
-  # Perform multiple imputation with user-customizable parameters
-  imputed_data <- reactive({
-    req(input$runBtn)  # Ensure the run button is clicked
-
+#  Read the uploaded cpeptide data
+  data_cpep <- reactive({
+    req(input$cpepData)  # Ensure the file input is not NULL
+    data.frame(read.csv(input$cpepData$datapath))
+  })
+  # Read the uploaded glucose data
+  data_gluc <- reactive({
+    req(input$glucoseData)  # Ensure the file input is not NULL
+    data.frame(read.csv(input$glucoseData$datapath))
+  })
+  # Reactive function to select data based on measurement
+  data <- reactive({
+  req(input$runBtn,data_cpep(),data_gluc())
+    data_cpep <- data_cpep()
+    data_gluc <- data_gluc()
+    # Cpeptide data - Create all combinations to ensure full data coverage
+    all_combinations_cpep <- expand.grid(
+      visit = unique(data_cpep$visit),
+      time = unique(data_cpep$time),
+      subject = unique(data_cpep$subject)
+    )
+    data_cpep1 <- left_join(all_combinations_cpep, data_cpep, by = c("visit", "time", "subject"))
+    # Glucose data - Create all combinations to ensure full data coverage
+    all_combinations_gluc <- expand.grid(
+      visit = unique(data_gluc$visit),
+      time = unique(data_gluc$time),
+      subject = unique(data_gluc$subject)
+    )
+    data_gluc1 <- left_join(all_combinations_gluc, data_gluc, by = c("visit", "time", "subject"))
     method <- input$method
     m_value <- input$mValue
     seed_value <- input$seedValue
-
     data_cpep_mice <- complete(mice(data_cpep1, m = m_value, method = method, seed = seed_value))
     data_gluc_mice <- complete(mice(data_gluc1, m = m_value, method = method, seed = seed_value))
 
-    list(cpep = data_cpep_mice, gluc = data_gluc_mice)
-  })
-
-  # Reactive function to select data based on measurement
-  data <- reactive({
-    if (input$Measurement == "Glucose") {
-      list(raw = data_gluc1, imputed = imputed_data()$gluc)
-    } else if (input$Measurement == "C-peptide") {
-      list(raw = data_cpep1, imputed = imputed_data()$cpep)
-    } else if (input$Measurement == "Index") {
+    df <- if(input$Measurement == "Glucose") {
+      list(raw = data_gluc1, imputed =  data_gluc_mice )
+    } else if(input$Measurement == "C-peptide") {
+      list(raw = data_cpep1, imputed = data_cpep_mice)
+    } else if(input$Measurement == "Index") {
       list(raw = list(cpep = data_cpep1, gluc = data_gluc1),
-           imputed = list(cpep = imputed_data()$cpep, gluc = imputed_data()$gluc))
+           imputed = list(cpep = data_cpep_mice, gluc =  data_gluc_mice))
     } else {
       list(raw = NULL, imputed = NULL)
     }
+    return(df)
   })
 
   # UI for selecting individual IDs
   output$individualSelect <- renderUI({
+    req(data())
     if (input$Measurement == "Index") {
       # Use the combined Index dataset
       selectInput("selectedID", "Select ID:",
@@ -272,8 +238,9 @@ server <- function(input, output, session) {
 
   # Interaction Plot for Raw Data (Left Column) using plotly
   output$InteractionPlot_raw <- renderPlotly({
-    req(input$runBtn)
-    plot_data <- data()$raw
+    req(input$runBtn,data())
+    data <- data()
+    plot_data <- data$raw
 
     # Ensure that time and visit are factors with levels set to chronological order
     plot_data$time <- factor(plot_data$time, levels = c("0hr", "0.5hr", "1hr", "1.5hr", "2hr"))
@@ -350,7 +317,7 @@ server <- function(input, output, session) {
 
   # Interaction Plot for Imputed Data (Right Column) using plotly
   output$InteractionPlot_imputed <- renderPlotly({
-    req(input$runBtn)
+    req(input$runBtn,data())
     plot_data <- data()$imputed
 
     # Ensure that time and visit are factors with levels set to chronological order
@@ -428,7 +395,7 @@ server <- function(input, output, session) {
 
   # Summary statistics for Raw Data (Left Column) using gt
   output$Summary_raw <- renderUI({
-    req(input$runBtn)
+    req(input$runBtn,data())
 
     summary_data <- if (input$Treatment == "Pooled") {
       data()$raw %>%
@@ -470,7 +437,7 @@ server <- function(input, output, session) {
 
   # Summary statistics for Imputed Data (Right Column) using gt
   output$Summary_imputed <- renderUI({
-    req(input$runBtn)
+    req(input$runBtn,data())
 
     summary_data <- if (input$Treatment == "Pooled") {
       data()$imputed %>%
@@ -512,7 +479,7 @@ server <- function(input, output, session) {
 
   # AUC Plot for raw data (Left Column) using plotly with conditional CI
   output$AUCPlot_raw <- renderPlotly({
-    req(input$runBtn)
+    req(input$runBtn,data())
     data <- data()$raw
     data$time <- sapply(data$time, convert_to_minutes)
 
